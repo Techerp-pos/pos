@@ -27,8 +27,8 @@ function Header() {
               Category
             </NavLink>
           </li>
-          <li className={activeLink === '/add-product' ? 'active-link' : ''}>
-            <NavLink to="/add-product" onClick={() => handleSetActiveLink('/add-product')}>
+          <li className={activeLink === '/product-listing' ? 'active-link' : ''}>
+            <NavLink to="/product-listing" onClick={() => handleSetActiveLink('/product-listing')}>
               Product
             </NavLink>
           </li>

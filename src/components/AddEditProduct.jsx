@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+// src/components/AddEditProduct.js
+import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../config/firebase';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { doc, getDoc, setDoc, addDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import JsBarcode from 'jsbarcode';
-import ProductList from './ProductList';
 import { useAuth } from '../contexts/AuthContext';
 
-function AddEditProduct() {
+function AddEditProduct({ onClose }) {
   const { currentUser } = useAuth();
   const [product, setProduct] = useState({
     code: 0,
@@ -30,7 +30,6 @@ function AddEditProduct() {
   const [newCategory, setNewCategory] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const { id } = useParams();
-  const navigate = useNavigate();
   const barcodeRef = useRef();
   const imageRef = useRef();
 
@@ -121,7 +120,7 @@ function AddEditProduct() {
       } else {
         await addDoc(collection(db, 'products'), productData);
       }
-      navigate('/product');
+      onClose();
     } catch (error) {
       console.error('Error adding/updating product: ', error);
       alert('Failed to add/update product');
@@ -314,7 +313,6 @@ function AddEditProduct() {
         </div>
         <button type="submit" className="submit-btn">{isEdit ? 'Update Product' : 'Add Product'}</button>
       </form>
-      <ProductList />
     </div>
   );
 }

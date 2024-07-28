@@ -11,7 +11,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'TechERP',
-        short_name: 'POS',
+        short_name: 'TechERP',
         description: 'A Progressive Web App for POS',
         theme_color: '#ffffff',
         icons: [

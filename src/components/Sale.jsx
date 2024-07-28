@@ -39,7 +39,7 @@ function Sale() {
 
     const fetchOrders = () => {
       const ordersCollection = collection(db, 'orders');
-      const q = query(ordersCollection,  where('addedBy', '==', currentUser.uid));
+      const q = query(ordersCollection, where('status', '==', 'Pending'), where('addedBy', '==', currentUser.uid));
 
       onSnapshot(q, (querySnapshot) => {
         setOrders(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -123,7 +123,7 @@ function Sale() {
     if (!selectedOrder) return;
     try {
       await updateDoc(doc(db, 'orders', selectedOrder.id), {
-        status: 'completed',
+        status: 'Completed',
         paymentType: paymentType,
       });
       setShowPaymentComplete(true);

@@ -48,6 +48,7 @@ function PrivateRoutes() {
           <Route path="/product" element={<ProductList />} />
           <Route path="/add-product" element={<AddEditProduct />} />
           <Route path="/edit-product/:id" element={<AddEditProduct />} />
+          <Route path="/product-listing" element={<ProductList />} />
           <Route path="/departments" element={<Departments />} />
           <Route path="/terminals" element={<Terminals />} />
           <Route path="/add-category" element={<AddCategory />} />

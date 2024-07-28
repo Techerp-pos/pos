@@ -78,7 +78,7 @@ function DayClose() {
       </style>
       <div class="bill-container">
         <div class="bill-header">
-          <p>${shopDetails.name}</p>
+          <h2>${shopDetails.name}</h2>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
           <h2>Day Close Report</h2>

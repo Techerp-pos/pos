@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../config/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +16,7 @@ function DailySales() {
     const q = query(
       collection(db, 'orders'),
       where('orderDate', '==', today),
-      where('status', '==', 'completed'),
+      where('status', '==', 'Completed'),
       where('addedBy', '==', currentUser.uid)
     );
 
@@ -27,6 +27,7 @@ function DailySales() {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        console.log(data); // Log the data to verify the fetched data structure
         if (data.paymentType === 'cash') {
           cashTotal += parseFloat(data.total);
         } else if (data.paymentType === 'card') {
@@ -34,6 +35,10 @@ function DailySales() {
         }
         overallTotal += parseFloat(data.total);
       });
+
+      console.log('Cash Total:', cashTotal); // Debug log for cash total
+      console.log('Card Total:', cardTotal); // Debug log for card total
+      console.log('Overall Total:', overallTotal); // Debug log for overall total
 
       setCashSales(cashTotal);
       setCardSales(cardTotal);

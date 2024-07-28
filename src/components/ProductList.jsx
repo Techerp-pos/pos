@@ -1,65 +1,58 @@
-import React, { useEffect, useState } from 'react';
+// src/components/ProductList.js
+import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { collection, getDocs } from 'firebase/firestore';
+import ProductModal from './ProductModal';
+import AddEditProduct from './AddEditProduct';
 
-function ProductList() {
+const ProductList = () => {
     const [products, setProducts] = useState([]);
-    const navigate = useNavigate();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchProducts = async () => {
             const productCollection = collection(db, 'products');
             const productSnapshot = await getDocs(productCollection);
-            const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setProducts(productList);
+            setProducts(productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         };
 
         fetchProducts();
     }, []);
 
-    const handleDelete = async (id) => {
-        await deleteDoc(doc(db, 'products', id));
-        setProducts(products.filter(product => product.id !== id));
-    };
-
     return (
-        <div className="ProductList">
-            <div className="header">
+        <div className="product-list">
+            <div className='product-list-button'>
                 <h2>Product List</h2>
-                <button className="add-button" onClick={() => navigate('/add-product')}>Add Product</button>
+                <button className="success-btn" onClick={() => setIsModalOpen(true)}>Add Product</button>
             </div>
+
             <table>
                 <thead>
                     <tr>
-                        <th>Code</th>
                         <th>Name</th>
-                        <th>Department</th>
-                        <th>Vendor</th>
+                        <th>Category</th>
                         <th>Price</th>
-                        <th>Barcode</th>
-                        <th>Actions</th>
+                        <th>Stock</th>
                     </tr>
                 </thead>
                 <tbody>
                     {products.map(product => (
                         <tr key={product.id}>
-                            <td>{product.code}</td>
                             <td>{product.name}</td>
-                            <td>{product.department}</td>
-                            <td>{product.vendor}</td>
+                            <td>{product.category}</td>
                             <td>{product.price}</td>
-                            <td>{product.barcode}</td>
-                            <td>
-                                <button className="edit-button" onClick={() => navigate(`/edit-product/${product.id}`)}>Edit</button>
-                                <button className="delete-button" onClick={() => handleDelete(product.id)}>Delete</button>
-                            </td>
+                            <td>{product.stock}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
+            {isModalOpen && (
+                <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+                    <AddEditProduct onClose={() => setIsModalOpen(false)} />
+                </ProductModal>
+            )}
         </div>
     );
-}
+};
 
 export default ProductList;
