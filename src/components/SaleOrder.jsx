@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { CartContext } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,7 +14,7 @@ function SaleOrder() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [showOrders, setShowOrders] = useState(false);
   const [localCart, setLocalCart] = useState([]);
-  const [status, setStatus] = useState('Pending')
+  const [status, setStatus] = useState('Pending');
   const { currentUser } = useAuth();
 
   const { cart, dispatch } = useContext(CartContext);
@@ -37,8 +37,9 @@ function SaleOrder() {
 
     const fetchOrders = async () => {
       if (currentUser) {
+        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
         const ordersCollection = collection(db, 'orders');
-        const q = query(ordersCollection, where('addedBy', '==', currentUser.uid));
+        const q = query(ordersCollection, where('addedBy', '==', currentUser.uid), where('orderDate', '==', today));
         const orderSnapshot = await getDocs(q);
         setOrders(orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       }
@@ -154,7 +155,7 @@ function SaleOrder() {
         total: calculateTotal().toFixed(3),
         timestamp: new Date(),
         addedBy: currentUser.uid,
-        status : status
+        status: status
       });
       alert('Order placed successfully');
       dispatch({ type: 'CLEAR_CART' });
@@ -166,6 +167,17 @@ function SaleOrder() {
     } catch (error) {
       console.error('Error placing order: ', error);
       alert('Failed to place order');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      alert('Order deleted successfully');
+      fetchOrders(); // Refresh orders after deletion
+    } catch (error) {
+      console.error('Error deleting order: ', error);
+      alert('Failed to delete order');
     }
   };
 
@@ -208,6 +220,7 @@ function SaleOrder() {
       </style>
       <div class="bill-container">
         <div class="bill-header">
+          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 50px; height: 50px;"/>` : ''}
           <p>${shopDetails.name}</p>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
@@ -340,11 +353,12 @@ function SaleOrder() {
 
               <div className="orders-grid">
                 {orders?.map(order => (
-                  <div key={order.orderId} className="order-card" onClick={() => handleEditOrder(order.orderId)}>
+                  <div key={order.orderId} className="order-card">
                     <p>Order ID: {order.orderId}</p>
                     <p>Date: {order.orderDate}</p>
                     <p>Total: {order.total} OMR</p>
                     <button onClick={() => handleEditOrder(order.orderId)}>Edit</button>
+                    <button onClick={() => handleDeleteOrder(order.orderId)} className="delete-button">Delete</button>
                   </div>
                 ))}
               </div>

@@ -1,9 +1,10 @@
-import React, { useState, useEffect , useContext} from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+
 function Departments() {
-  const {currentUser} = useContext(useAuth)
+  const { currentUser } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [newDepartment, setNewDepartment] = useState({ code: '', name: '', isDeliItem: false, promotion: '' });
 
@@ -20,8 +21,8 @@ function Departments() {
   const handleAddDepartment = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'departments'), newDepartment);
-      setNewDepartment({ code: '', name: '', isDeliItem: false, promotion: '' , addedBy: currentUser? currentUser.uid : 'Unknown'});
+      await addDoc(collection(db, 'departments'), { ...newDepartment, addedBy: currentUser ? currentUser.uid : 'Unknown' });
+      setNewDepartment({ code: '', name: '', isDeliItem: false, promotion: '' });
       fetchDepartments(); // Refresh the list
     } catch (error) {
       console.error('Error adding department: ', error);
@@ -38,46 +39,58 @@ function Departments() {
   };
 
   return (
-    <div>
-      <h2>Departments</h2>
-      <form onSubmit={handleAddDepartment}>
-        <label>Code</label>
-        <input 
-          type="text" 
-          name="code" 
-          value={newDepartment.code} 
-          onChange={handleChange} 
-          required 
-        />
-        <label>Name</label>
-        <input 
-          type="text" 
-          name="name" 
-          value={newDepartment.name} 
-          onChange={handleChange} 
-          required 
-        />
-        <label>
+    <div className="departments-container">
+      <h2 className="departments-title">Departments</h2>
+      <form className="departments-form" onSubmit={handleAddDepartment}>
+        <div className="form-group">
+          <label htmlFor="code">Code</label>
+          <input 
+            type="text" 
+            name="code" 
+            id="code" 
+            value={newDepartment.code} 
+            onChange={handleChange} 
+            required 
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="name">Name</label>
+          <input 
+            type="text" 
+            name="name" 
+            id="name" 
+            value={newDepartment.name} 
+            onChange={handleChange} 
+            required 
+          />
+        </div>
+        <div className="form-group checkbox-group">
           <input 
             type="checkbox" 
             name="isDeliItem" 
+            id="isDeliItem" 
             checked={newDepartment.isDeliItem} 
             onChange={handleChange} 
           />
-          Is Deli Item
-        </label>
-        <label>Promotion</label>
-        <input 
-          type="text" 
-          name="promotion" 
-          value={newDepartment.promotion} 
-          onChange={handleChange} 
-        />
-        <button type="submit">Add Department</button>
+          <label htmlFor="isDeliItem">Is Deli Item</label>
+        </div>
+        <div className="form-group">
+          <label htmlFor="promotion">Promotion</label>
+          <input 
+            type="text" 
+            name="promotion" 
+            id="promotion" 
+            value={newDepartment.promotion} 
+            onChange={handleChange} 
+          />
+        </div>
+        <button className="add-department-button" type="submit">Add Department</button>
       </form>
-      <ul>
+      <ul className="departments-list">
         {departments.map(dept => (
-          <li key={dept.id}>{dept.code} - {dept.name}</li>
+          <li key={dept.id} className="department-item">
+            <span className="department-code">{dept.code}</span> - <span className="department-name">{dept.name}</span>
+          </li>
         ))}
       </ul>
     </div>

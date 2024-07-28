@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { db } from '../config/firebase';
+import React, { useState, useEffect } from 'react';
+import { db, storage } from '../config/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../contexts/AuthContext';
 
 function Settings() {
@@ -9,7 +10,9 @@ function Settings() {
     name: '',
     address: '',
     phone: '',
+    logoUrl: '',
   });
+  const [logo, setLogo] = useState(null);
 
   useEffect(() => {
     const fetchShopDetails = async () => {
@@ -29,8 +32,21 @@ function Settings() {
     setShopDetails({ ...shopDetails, [name]: value });
   };
 
+  const handleLogoChange = (e) => {
+    if (e.target.files[0]) {
+      setLogo(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (logo) {
+      const logoRef = ref(storage, `logos/${currentUser.uid}`);
+      await uploadBytes(logoRef, logo);
+      const logoUrl = await getDownloadURL(logoRef);
+      setShopDetails({ ...shopDetails, logoUrl });
+    }
+
     try {
       if (currentUser) {
         await setDoc(doc(db, 'shopDetails', currentUser.uid), shopDetails);
@@ -43,9 +59,9 @@ function Settings() {
   };
 
   return (
-    <div>
-      <h2>Settings</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="settings-container">
+      <h2 className="settings-title">Settings</h2>
+      <form className="settings-form" onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Shop Name</label>
           <input
@@ -75,6 +91,15 @@ function Settings() {
             onChange={handleChange}
             required
           />
+        </div>
+        <div className="form-group">
+          <label>Logo</label>
+          <input
+            type="file"
+            onChange={handleLogoChange}
+            accept="image/*"
+          />
+          {shopDetails.logoUrl && <img src={shopDetails.logoUrl} alt="Logo" className="shop-logo" />}
         </div>
         <button type="submit" className="submit-btn">Save</button>
       </form>

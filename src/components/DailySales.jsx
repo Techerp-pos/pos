@@ -36,9 +36,6 @@ function DailySales() {
         overallTotal += parseFloat(data.total);
       });
 
-      console.log('Cash Total:', cashTotal); // Debug log for cash total
-      console.log('Card Total:', cardTotal); // Debug log for card total
-      console.log('Overall Total:', overallTotal); // Debug log for overall total
 
       setCashSales(cashTotal);
       setCardSales(cardTotal);

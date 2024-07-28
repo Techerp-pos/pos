@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 
 function DayClose() {
@@ -78,6 +78,7 @@ function DayClose() {
       </style>
       <div class="bill-container">
         <div class="bill-header">
+          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 50px; height: 50px;"/>` : ''}
           <h2>${shopDetails.name}</h2>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
@@ -118,14 +119,14 @@ function DayClose() {
   };
 
   return (
-    <div>
-      <h2>Day Close</h2>
-      <div>
+    <div className="day-close-container">
+      <h2 className="day-close-title">Day Close</h2>
+      <div className="sales-summary">
         <p>Cash Sales: {cashSales.toFixed(3)} OMR</p>
         <p>Card Sales: {cardSales.toFixed(3)} OMR</p>
         <p>Total Sales: {totalSales.toFixed(3)} OMR</p>
       </div>
-      <button onClick={handlePrint}>Print Day Close Report</button>
+      <button className="print-button" onClick={handlePrint}>Print Day Close Report</button>
     </div>
   );
 }

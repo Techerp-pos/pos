@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, doc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import { CartContext } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from './Modal'; // Assuming you have a modal component
@@ -119,18 +119,85 @@ function Sale() {
     dispatch({ type: 'SET_CART', payload: order.cart });
   };
 
-  const handleMakePayment = async () => {
-    if (!selectedOrder) return;
+  const generateOrderId = async () => {
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+    const orderCounterDocRef = doc(db, 'orderCounters', formattedDate);
+
+    const orderCounterDoc = await getDoc(orderCounterDocRef);
+
+    let increment = 1;
+    if (orderCounterDoc.exists()) {
+      increment = orderCounterDoc.data().currentIncrement + 1;
+    }
+
+    await setDoc(orderCounterDocRef, { currentIncrement: increment });
+
+    return `${formattedDate}${String(increment).padStart(4, '0')}`; // Format: YYYYMMDD0001
+  };
+
+  const handlePlaceOrder = async () => {
+    const orderId = selectedOrder ? selectedOrder.id : await generateOrderId();
+
     try {
-      await updateDoc(doc(db, 'orders', selectedOrder.id), {
-        status: 'Completed',
-        paymentType: paymentType,
-      });
+      await setDoc(doc(db, 'orders', orderId), {
+        orderId,
+        orderDate: new Date().toISOString().split('T')[0],
+        cart: localCart,
+        subtotal: calculateSubtotal().toFixed(3),
+        discount,
+        total: calculateTotal().toFixed(3),
+        timestamp: new Date(),
+        addedBy: currentUser.uid,
+        status: 'Pending'
+      }, { merge: true });
+      alert('Order placed successfully');
+      dispatch({ type: 'CLEAR_CART' });
+      localStorage.removeItem('cart');
+      setSelectedOrder(null); // Reset selected order ID after placing the order
+      setLocalCart([]);
+      setShowOrders(false);
+    } catch (error) {
+      console.error('Error placing order: ', error);
+      alert('Failed to place order');
+    }
+  };
+
+  const handleMakePayment = async () => {
+    const orderId = selectedOrder ? selectedOrder.id : await generateOrderId();
+
+    try {
+      const orderDocRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderDocRef);
+
+      if (orderDoc.exists()) {
+        await updateDoc(orderDocRef, {
+          status: 'Completed',
+          paymentType: paymentType,
+        });
+      } else {
+        await setDoc(orderDocRef, {
+          orderId,
+          orderDate: new Date().toISOString().split('T')[0],
+          cart: localCart,
+          subtotal: calculateSubtotal().toFixed(3),
+          discount,
+          total: calculateTotal().toFixed(3),
+          timestamp: new Date(),
+          addedBy: currentUser.uid,
+          status: 'Completed',
+          paymentType: paymentType
+        });
+      }
+
       setShowPaymentComplete(true);
       setTimeout(() => {
         setShowPaymentComplete(false);
         setSelectedOrder(null);
         setPaymentType('');
+        dispatch({ type: 'CLEAR_CART' });
+        localStorage.removeItem('cart');
+        setLocalCart([]);
       }, 3000);
     } catch (error) {
       console.error('Error completing transaction: ', error);
