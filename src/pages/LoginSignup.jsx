@@ -71,7 +71,7 @@ function LoginSignup() {
                     <img src='./images/img-1.png' className='Login-image' alt="Login" />
                 </div>
                 <div className='Login-form-container'>
-                    <h1>Welcome to TechERP!</h1>
+                    {/* <h1>Welcome to TechERP!</h1> */}
                     {loading ? (
                         <img src="./images/login.gif" alt="Loading..." className="loading-gif" />
                     ) : (
