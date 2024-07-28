@@ -39,7 +39,7 @@ function Sale() {
 
     const fetchOrders = () => {
       const ordersCollection = collection(db, 'orders');
-      const q = query(ordersCollection, where('status', '!=', 'completed'), where('addedBy', '==', currentUser.uid));
+      const q = query(ordersCollection,  where('addedBy', '==', currentUser.uid));
 
       onSnapshot(q, (querySnapshot) => {
         setOrders(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
