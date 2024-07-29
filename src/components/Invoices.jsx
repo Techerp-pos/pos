@@ -143,7 +143,7 @@ function Invoices() {
             <ul className="orders-list">
                 {orders.slice(0, 10).map((order) => (
                     <li key={order.id} className="order-item">
-                        {new Date(order.timestamp.toDate()).toLocaleDateString()} - ${parseFloat(order.total).toFixed(3)} - {order.status} - {order.cart.map(item => `${item.name} (${item.quantity})`).join(', ')} - Discount: {parseFloat(order.discount).toFixed(3)}
+                        {new Date(order.timestamp.toDate()).toLocaleDateString()} - {parseFloat(order.total).toFixed(3)} OMR - {order.status} - {order.cart.map(item => `${item.name} (${item.quantity})`).join(', ')} - Discount: {parseFloat(order.discount).toFixed(3)}
                     </li>
                 ))}
             </ul>

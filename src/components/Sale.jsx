@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, doc, updateDoc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { CartContext } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from './Modal'; // Assuming you have a modal component
@@ -18,6 +18,7 @@ function Sale() {
   const [localCart, setLocalCart] = useState([]);
   const [paymentType, setPaymentType] = useState('');
   const [showPaymentComplete, setShowPaymentComplete] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState(null); // For storing completed order details
 
   const { dispatch } = useContext(CartContext);
 
@@ -37,13 +38,19 @@ function Sale() {
       }
     };
 
-    const fetchOrders = () => {
-      const ordersCollection = collection(db, 'orders');
-      const q = query(ordersCollection, where('status', '==', 'Pending'), where('addedBy', '==', currentUser.uid));
+    const fetchOrders = async () => {
+      if (currentUser) {
+        const ordersCollection = collection(db, 'orders');
+        const orderSnapshot = await getDocs(ordersCollection);
+        const today = new Date().toISOString().split('T')[0];
+        let fetchedOrders = orderSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(order => order.addedBy === currentUser.uid && order.orderDate === today && order.status === 'Pending');
 
-      onSnapshot(q, (querySnapshot) => {
-        setOrders(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      });
+        // Sort orders manually by timestamp (latest first)
+        fetchedOrders.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+        setOrders(fetchedOrders);
+      }
     };
 
     fetchCategories();
@@ -58,14 +65,8 @@ function Sale() {
 
   const fetchProducts = async (categoryName = null) => {
     const productsRef = collection(db, 'products');
-    let q;
-    if (categoryName) {
-      q = query(productsRef, where('category', '==', categoryName), where('addedBy', '==', currentUser.uid));
-    } else {
-      q = query(productsRef, where('addedBy', '==', currentUser.uid));
-    }
-    const productSnapshot = await getDocs(q);
-    setProducts(productSnapshot.docs.map(doc => {
+    const productSnapshot = await getDocs(productsRef);
+    const allProducts = productSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -74,7 +75,11 @@ function Sale() {
         price: parseFloat(data.price),
         stock: parseInt(data.stock, 10)
       };
-    }));
+    });
+    const filteredProducts = categoryName
+      ? allProducts.filter(product => product.category === categoryName && product.addedBy === currentUser.uid)
+      : allProducts.filter(product => product.addedBy === currentUser.uid);
+    setProducts(filteredProducts);
   };
 
   const handleCategoryClick = (category) => {
@@ -180,8 +185,9 @@ function Sale() {
           status: 'Completed',
           paymentType: paymentType,
         });
+        setCompletedOrder(orderDoc.data());
       } else {
-        await setDoc(orderDocRef, {
+        const newOrderData = {
           orderId,
           orderDate: new Date().toISOString().split('T')[0],
           cart: localCart,
@@ -192,7 +198,9 @@ function Sale() {
           addedBy: currentUser.uid,
           status: 'Completed',
           paymentType: paymentType
-        });
+        };
+        await setDoc(orderDocRef, newOrderData);
+        setCompletedOrder(newOrderData);
       }
 
       setShowPaymentComplete(true);
@@ -210,6 +218,138 @@ function Sale() {
     }
   };
 
+  const handlePrint = (order) => {
+    const printContent = `
+      <style>
+        body {
+          margin: 10px;
+          display: flex;
+          align-items: center;
+          width: 100vw;
+          height: 100vh;
+          flex-direction: column;
+        }
+        .bill-container {
+          font-family: 'Arial', sans-serif;
+          width: 95vw;
+          height: 90%;
+          border: 1px solid #ccc;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-around;
+        }
+        .bill-header {
+          text-align: center;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+        }
+        .bill-header h2 {
+          margin: 0;
+          font-size: 36px; /* Adjusted font size for receipt paper */
+        }
+        .bill-header p {
+          margin: 0;
+          font-size: 28px; /* Adjusted font size for receipt paper */
+        }
+        .bill-items,
+        .transactions {
+          width: 100%;
+          border-collapse: collapse;
+          height: 20%;
+        }
+        .bill-items th,
+        .bill-items td,
+        .transactions th,
+        .transactions td {
+          border: 1px solid #ccc;
+          padding: 5px; /* Adjusted padding for better spacing */
+          text-align: left;
+          font-size: 30px; /* Adjusted font size for receipt paper */
+        }
+        .bill-summary {
+          margin-top: 10px;
+          width: 100%;
+          text-align: right;
+          font-size: 30px; /* Adjusted font size for receipt paper */
+        }
+        .bill-footer {
+          margin-top: 10px;
+          text-align: center;
+          font-size: 30px; /* Adjusted font size for receipt paper */
+        }
+      </style>
+      <div class="bill-container">
+        <div class="bill-header">
+          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 150px;height: 150px;border-radius: 20px;margin-bottom: 30px;"` : ''}
+          <p>${shopDetails.name}</p>
+          <p>${shopDetails.address}</p>
+          <p>${shopDetails.phone}</p>
+          <h2>TechERP-POS</h2>
+          <p>Invoice</p>
+          <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+        </div>
+        <table class="bill-items">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.cart?.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.price.toFixed(3)}</td>
+                <td>${(item.price * item.quantity).toFixed(3)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="bill-summary">
+          <p>Total: ${order.total} OMR</p>
+        </div>
+        <div class="bill-footer">
+          <p>----Transaction Completed----</p>
+        </div>
+      </div>
+    `;
+    const printWindow = window.open('', '');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      alert('Order deleted successfully');
+      setOrders(orders.filter(order => order.id !== orderId)); // Update the orders state
+    } catch (error) {
+      console.error('Error deleting order: ', error);
+      alert('Failed to delete order');
+    }
+  };
+
+  const handleEditOrder = async (orderId) => {
+    const orderDoc = await getDoc(doc(db, 'orders', orderId));
+    if (orderDoc.exists()) {
+      const orderData = orderDoc.data();
+      dispatch({ type: 'CLEAR_CART' });
+      localStorage.removeItem('cart');
+      setLocalCart(orderData.cart);
+      localStorage.setItem('cart', JSON.stringify(orderData.cart));
+      setSelectedOrder(orderData); // Updated this line to set the correct selected order
+    } else {
+      alert('Order not found');
+    }
+  };
+
   return (
     <div className="sale-order">
       <div style={{ display: 'flex', alignItems: 'space-between', width: '100%' }}>
@@ -220,7 +360,6 @@ function Sale() {
               <img width="24" height="24" src="https://img.icons8.com/color/48/order-history.png" alt="order-history" />
             </button>
           </div>
-
           <div className="categories">
             <button
               className={`category-button ${selectedCategory === null ? 'active' : ''}`}
@@ -264,14 +403,15 @@ function Sale() {
                 <h2>Orders</h2>
                 <button className="close-modal" onClick={() => setShowOrders(false)}>Close</button>
               </div>
-
               <div className="orders-grid">
                 {orders?.map(order => (
-                  <div key={order.orderId} className="order-card" onClick={() => handleSelectOrder(order)}>
+                  <div key={order.orderId} className="order-card">
                     <p>Order ID: {order.orderId}</p>
                     <p>Date: {order.orderDate}</p>
+                    <p>Time: {new Date(order.timestamp.toDate()).toLocaleTimeString()}</p>
                     <p>Total: {order.total} OMR</p>
                     <button onClick={() => handleSelectOrder(order)}>Open</button>
+                    <button onClick={() => handleDeleteOrder(order.id)} className="delete-button">Delete</button>
                   </div>
                 ))}
               </div>
@@ -326,17 +466,17 @@ function Sale() {
                   <option value="card">Card</option>
                 </select>
               </label>
-              <button onClick={handleMakePayment}>Make Payment</button>
+              <button onClick={handleMakePayment} disabled={!paymentType}>Make Payment</button>
             </div>
           </div>
         </div>
       </div>
-
       {showPaymentComplete && (
         <Modal>
           <div className="payment-complete-popup">
             <img src="./images/techny-food-order-complete.png" alt="Transaction Complete" />
             <h2>Transaction Complete</h2>
+            <button onClick={() => handlePrint(completedOrder)}>Print Order</button>
           </div>
         </Modal>
       )}
