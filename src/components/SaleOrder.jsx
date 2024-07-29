@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { CartContext } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,6 +15,7 @@ function SaleOrder() {
   const [showOrders, setShowOrders] = useState(false);
   const [localCart, setLocalCart] = useState([]);
   const [status, setStatus] = useState('Pending');
+  const [paymentType, setPaymentType] = useState('');
   const { currentUser } = useAuth();
 
   const { cart, dispatch } = useContext(CartContext);
@@ -35,16 +36,6 @@ function SaleOrder() {
       }
     };
 
-    const fetchOrders = async () => {
-      if (currentUser) {
-        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-        const ordersCollection = collection(db, 'orders');
-        const q = query(ordersCollection, where('addedBy', '==', currentUser.uid), where('orderDate', '==', today));
-        const orderSnapshot = await getDocs(q);
-        setOrders(orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }
-    };
-
     fetchCategories();
     fetchShopDetails();
     fetchProducts();
@@ -60,14 +51,8 @@ function SaleOrder() {
 
   const fetchProducts = async (categoryName = null) => {
     const productsRef = collection(db, 'products');
-    let q;
-    if (categoryName) {
-      q = query(productsRef, where('category', '==', categoryName), where('addedBy', '==', currentUser.uid));
-    } else {
-      q = query(productsRef, where('addedBy', '==', currentUser.uid));
-    }
-    const productSnapshot = await getDocs(q);
-    setProducts(productSnapshot.docs.map(doc => {
+    const productSnapshot = await getDocs(productsRef);
+    const allProducts = productSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -76,7 +61,24 @@ function SaleOrder() {
         price: parseFloat(data.price),
         stock: parseInt(data.stock, 10)
       };
-    }));
+    });
+    const filteredProducts = categoryName
+      ? allProducts.filter(product => product.category === categoryName && product.addedBy === currentUser.uid)
+      : allProducts.filter(product => product.addedBy === currentUser.uid);
+    setProducts(filteredProducts);
+  };
+
+  const fetchOrders = async () => {
+    if (currentUser) {
+      const ordersCollection = collection(db, 'orders');
+      const orderSnapshot = await getDocs(ordersCollection);
+      let fetchedOrders = orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      fetchedOrders = fetchedOrders.filter(order => order.addedBy === currentUser.uid);
+
+      // Sort orders manually by timestamp
+      fetchedOrders.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+      setOrders(fetchedOrders);
+    }
   };
 
   const loadCartFromLocalStorage = () => {
@@ -143,6 +145,11 @@ function SaleOrder() {
   };
 
   const handlePlaceOrder = async () => {
+    if (localCart.length === 0) {
+      alert('Please add items to the cart before placing an order.');
+      return;
+    }
+
     const orderId = selectedOrderId || await generateOrderId();
 
     try {
@@ -160,10 +167,12 @@ function SaleOrder() {
       alert('Order placed successfully');
       dispatch({ type: 'CLEAR_CART' });
       localStorage.removeItem('cart');
-      handlePrint(orderId);
       setSelectedOrderId(null); // Reset selected order ID after placing the order
-      fetchOrders(); // Refresh orders after placing a new order
       setLocalCart([]);
+
+      // Fetch the newly placed order and print it
+      const orderDoc = await getDoc(doc(db, 'orders', orderId));
+      handlePrint(orderDoc.data());
     } catch (error) {
       console.error('Error placing order: ', error);
       alert('Failed to place order');
@@ -181,50 +190,83 @@ function SaleOrder() {
     }
   };
 
-  const handlePrint = (orderId) => {
-    const order = orders.find(order => order.orderId === orderId) || {};
+  const handlePrint = (order) => {
     const printContent = `
       <style>
+        body{
+        margin: 10px;
+        display: flex;
+        align-items: center;
+        width: 100vw;
+        height: 100vh;
+        flex-direction: column;
+        }
         .bill-container {
           font-family: 'Arial', sans-serif;
-          width: 80mm;
-          padding: 10px;
+          width: 95vw;
+          height: 90%;
           border: 1px solid #ccc;
-          margin: auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-around;
         }
         .bill-header {
           text-align: center;
           margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          flex-direction: column;
         }
-        .bill-header h2, .bill-header p {
+      
+        .bill-header h2 {
           margin: 0;
+          font-size: 36px; /* Adjusted font size for receipt paper */
         }
-        .bill-items, .transactions {
+      
+        .bill-header p {
+          margin: 0;
+          font-size: 28px; /* Adjusted font size for receipt paper */
+        }
+      
+        .bill-items,
+        .transactions {
           width: 100%;
           border-collapse: collapse;
+          height: 20%;
         }
-        .bill-items th, .bill-items td, .transactions th, .transactions td {
+      
+        .bill-items th,
+        .bill-items td,
+        .transactions th,
+        .transactions td {
           border: 1px solid #ccc;
-          padding: 5px;
+          padding: 5px; /* Adjusted padding for better spacing */
           text-align: left;
+          font-size: 30px; /* Adjusted font size for receipt paper */
         }
+      
         .bill-summary {
           margin-top: 10px;
           width: 100%;
           text-align: right;
+          font-size: 30px; /* Adjusted font size for receipt paper */
         }
+      
         .bill-footer {
           margin-top: 10px;
           text-align: center;
+          font-size: 30px; /* Adjusted font size for receipt paper */
         }
       </style>
+      
       <div class="bill-container">
         <div class="bill-header">
-          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 50px; height: 50px;"/>` : ''}
+          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 150px;height: 150px;border-radius: 20px;margin-bottom: 30px;"` : ''}
           <p>${shopDetails.name}</p>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
-          <h2>eSale-POS</h2>
+          <h2>TechERP-POS</h2>
           <p>Invoice</p>
           <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         </div>
@@ -251,32 +293,15 @@ function SaleOrder() {
         <div class="bill-summary">
           <p>Total: ${order.total} OMR</p>
         </div>
-        <div class="transactions">
-          <thead>
-            <tr>
-              <th>Payment</th>
-              <th>Given</th>
-              <th>Balance</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>CASH</td>
-              <td>5.000</td>
-              <td>3.800</td>
-              <td>${order.total} OMR</td>
-            </tr>
-          </tbody>
-        </div>
+        
         <div class="bill-footer">
-          <p>Signature:</p>
+          <p>Order Placed</p>
           <p>No CASH REFUND</p>
           <p>NO EXCHANGE</p>
         </div>
       </div>
     `;
-    const printWindow = window.open('', '', 'width=600,height=400');
+    const printWindow = window.open('', '');
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.print();
@@ -330,7 +355,9 @@ function SaleOrder() {
               const isVisible = selectedCategory === null || selectedCategory.name === product.category;
               return (
                 <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`}>
-                  <img src={product.imageUrl} alt={product.name} />
+                  {product.imageUrl && (
+                    <img src={product.imageUrl} alt={product.name} />
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h3>{product.name}</h3>
                     <p style={{ color: 'green' }}>{product.price.toFixed(3)} OMR</p>
@@ -356,6 +383,7 @@ function SaleOrder() {
                   <div key={order.orderId} className="order-card">
                     <p>Order ID: {order.orderId}</p>
                     <p>Date: {order.orderDate}</p>
+                    <p>Time: {new Date(order.timestamp.toDate()).toLocaleTimeString()}</p>
                     <p>Total: {order.total} OMR</p>
                     <button onClick={() => handleEditOrder(order.orderId)}>Edit</button>
                     <button onClick={() => handleDeleteOrder(order.orderId)} className="delete-button">Delete</button>

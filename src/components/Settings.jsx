@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, storage } from '../config/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../contexts/AuthContext';
 
 function Settings() {
@@ -13,6 +13,8 @@ function Settings() {
     logoUrl: '',
   });
   const [logo, setLogo] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const fetchShopDetails = async () => {
@@ -40,22 +42,44 @@ function Settings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsUploading(true);
     if (logo) {
       const logoRef = ref(storage, `logos/${currentUser.uid}`);
-      await uploadBytes(logoRef, logo);
-      const logoUrl = await getDownloadURL(logoRef);
-      setShopDetails({ ...shopDetails, logoUrl });
-    }
+      const uploadTask = uploadBytesResumable(logoRef, logo);
 
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error('Error uploading logo: ', error);
+          alert('Failed to upload logo');
+          setIsUploading(false);
+        },
+        async () => {
+          const logoUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          setShopDetails((prevDetails) => ({ ...prevDetails, logoUrl }));
+          saveShopDetails({ ...shopDetails, logoUrl });
+        }
+      );
+    } else {
+      saveShopDetails(shopDetails);
+    }
+  };
+
+  const saveShopDetails = async (details) => {
     try {
       if (currentUser) {
-        await setDoc(doc(db, 'shopDetails', currentUser.uid), shopDetails);
+        await setDoc(doc(db, 'shopDetails', currentUser.uid), details);
         alert('Shop details updated successfully');
       }
     } catch (error) {
       console.error('Error updating shop details: ', error);
       alert('Failed to update shop details');
     }
+    setIsUploading(false);
   };
 
   return (
@@ -100,8 +124,11 @@ function Settings() {
             accept="image/*"
           />
           {shopDetails.logoUrl && <img src={shopDetails.logoUrl} alt="Logo" className="shop-logo" />}
+          {isUploading && <p>Uploading: {uploadProgress.toFixed(2)}%</p>}
         </div>
-        <button type="submit" className="submit-btn">Save</button>
+        <button type="submit" className="submit-btn" disabled={isUploading}>
+          {isUploading ? 'Uploading...' : 'Save'}
+        </button>
       </form>
     </div>
   );

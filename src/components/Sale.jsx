@@ -49,6 +49,11 @@ function Sale() {
     fetchCategories();
     fetchShopDetails();
     fetchOrders();
+
+    const cartFromLocalStorage = localStorage.getItem('cart');
+    if (cartFromLocalStorage) {
+      setLocalCart(JSON.parse(cartFromLocalStorage));
+    }
   }, [currentUser]);
 
   const fetchProducts = async (categoryName = null) => {
