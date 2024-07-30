@@ -44,7 +44,7 @@ function LoginSignup() {
         setLoading(true);
         try {
             await signup(signupEmailRef.current.value, signupPasswordRef.current.value, signupShopCodeRef.current.value);
-            navigate('/dashboard');
+            navigate('/login');
             setIsSignup(false);
         } catch (error) {
             alert(error.message);

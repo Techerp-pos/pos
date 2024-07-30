@@ -1380,3 +1380,51 @@ h2 {
 .report-section button:hover {
     background-color: #0056b3;
 }
+
+.shop-details-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.shop-details-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.shop-logo {
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.shop-name {
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.shop-address {
+    font-size: 16px;
+}
+
+.edit-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    /* Green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.edit-btn a {
+    color: white;
+    text-decoration: none;
+}
+
+.edit-btn:hover {
+    background-color: #45a049;
+}

@@ -147,7 +147,7 @@ function Invoices() {
                     </li>
                 ))}
             </ul>
-            <button onClick={() => setShowPrintDialog(true)}>Print Orders</button>
+            <button onClick={() => setShowPrintDialog(true)} className='edit-btn'>Print Orders</button>
 
             {showPrintDialog && (
                 <div className="print-dialog">

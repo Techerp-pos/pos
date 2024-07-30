@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext'; // Assuming you have an AuthContext to provide current user information
+import { Link } from 'react-router-dom';
 
 function ShopDetails() {
     const [shopDetails, setShopDetails] = useState({});
@@ -11,7 +12,7 @@ function ShopDetails() {
         const fetchShopDetails = async () => {
             if (currentUser) {
                 try {
-                    const docRef = doc(db, 'users', currentUser.uid);
+                    const docRef = doc(db, 'shopDetails', currentUser.uid);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) {
                         setShopDetails(docSnap.data());
@@ -28,12 +29,15 @@ function ShopDetails() {
     }, [currentUser]);
 
     return (
-        <div>
+        <div className="shop-details-container">
             <h2>Shop Details</h2>
             {shopDetails ? (
-                <>
-                    <p>Name: {shopDetails.name}</p>
-                </>
+                <div className="shop-details-content">
+                    <img src={shopDetails.logoUrl} className="shop-logo" alt="Shop Logo" style={{ maxWidth: '350px'}}/>
+                    <p>Name: <span className="shop-name">{shopDetails.name}</span></p>
+                    <p>Address: <span className="shop-address">{shopDetails.address}</span></p>
+                    <button className="edit-btn"><Link to={'/settings'}>Edit</Link></button>
+                </div>
             ) : (
                 <p>Loading...</p>
             )}

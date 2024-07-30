@@ -1,70 +1,77 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+// contexts/AuthContext.js
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../config/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
 export function useAuth() {
-  return useContext(AuthContext);
+    return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    setCurrentUser({ ...user, ...userDoc.data() });
+                } else {
+                    setCurrentUser(user);
+                }
+            } else {
+                setCurrentUser(null);
+            }
+            setLoading(false);
+        });
 
-    return unsubscribe;
-  }, []);
+        return unsubscribe;
+    }, []);
 
-  const login = async (email, password, shopCode) => {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+    const signup = async (email, password, shopCode) => {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await setDoc(doc(db, 'users', user.uid), {
+            email,
+            shopCode,
+            role: 'user', // Default role
+            createdAt: new Date(),
+        });
+    };
 
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      if (userData.shopCode === shopCode) {
-        return result;
-      } else {
+    const login = async (email, password, shopCode) => {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data().shopCode === shopCode) {
+            setCurrentUser({ ...user, ...userDoc.data() });
+        } else {
+            throw new Error('Invalid shop code');
+        }
+    };
+
+    const logout = async () => {
         await signOut(auth);
-        throw new Error('Shop code does not match');
-      }
-    } else {
-      await signOut(auth);
-      throw new Error('User data not found');
-    }
-  };
+        setCurrentUser(null);
+    };
 
-  const signup = async (email, password, shopCode) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    // Store additional user info in Firestore
-    await setDoc(doc(db, 'users', result.user.uid), {
-      email: email,
-      shopCode: shopCode,
-      createdAt: new Date(),
-    });
-    return result;
-  };
+    const isSuperAdmin = currentUser?.role === 'superAdmin';
 
-  const logout = () => {
-    return signOut(auth);
-  };
+    const value = {
+        currentUser,
+        signup,
+        login,
+        logout,
+        isSuperAdmin,
+    };
 
-  const value = {
-    currentUser,
-    login,
-    signup,
-    logout
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+    return (
+        <AuthContext.Provider value={value}>
+            {!loading && children}
+        </AuthContext.Provider>
+    );
 }
