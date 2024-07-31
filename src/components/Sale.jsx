@@ -300,7 +300,7 @@ function Sale() {
           <tbody>
             ${order.cart?.map(item => `
               <tr>
-                <td>${item.name}</td>
+                <td>${item.name} - ${item.localName}</td>
                 <td>${item.quantity}</td>
                 <td>${item.price.toFixed(3)}</td>
                 <td>${(item.price * item.quantity).toFixed(3)}</td>
@@ -384,6 +384,7 @@ function Sale() {
                   <img src={product.imageUrl} alt={product.name} />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h3>{product.name}</h3>
+                    <h3>{product.localName}</h3>
                     <p style={{ color: 'green' }}>{product.price.toFixed(3)} OMR</p>
                     {/* <span>{cartItem.quantity}</span> */}
                   </div>
