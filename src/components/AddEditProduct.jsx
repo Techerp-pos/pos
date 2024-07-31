@@ -7,7 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import JsBarcode from 'jsbarcode';
 import { useAuth } from '../contexts/AuthContext';
 
-function AddEditProduct({ onClose }) {
+function AddEditProduct({ onClose, product: initialProduct }) {
   const { currentUser } = useAuth();
   const [product, setProduct] = useState({
     code: 0,
@@ -34,22 +34,15 @@ function AddEditProduct({ onClose }) {
   const imageRef = useRef();
 
   useEffect(() => {
-    if (id) {
+    if (initialProduct) {
       setIsEdit(true);
-      const fetchProduct = async () => {
-        const productDoc = await getDoc(doc(db, 'products', id));
-        if (productDoc.exists()) {
-          const productData = productDoc.data();
-          setProduct({
-            ...productData,
-            code: parseInt(productData.code, 10),
-            barcode: parseInt(productData.barcode, 10),
-            price: parseFloat(productData.price),
-            stock: parseInt(productData.stock, 10),
-          });
-        }
-      };
-      fetchProduct();
+      setProduct({
+        ...initialProduct,
+        code: parseInt(initialProduct.code, 10),
+        barcode: parseInt(initialProduct.barcode, 10),
+        price: parseFloat(initialProduct.price),
+        stock: parseInt(initialProduct.stock, 10),
+      });
     } else {
       const fetchLatestProduct = async () => {
         const productsRef = collection(db, 'products');
@@ -72,7 +65,7 @@ function AddEditProduct({ onClose }) {
       };
       fetchLatestProduct();
     }
-  }, [id]);
+  }, [initialProduct]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -116,7 +109,7 @@ function AddEditProduct({ onClose }) {
       };
 
       if (isEdit) {
-        await setDoc(doc(db, 'products', id), productData);
+        await setDoc(doc(db, 'products', initialProduct.id), productData);
       } else {
         await addDoc(collection(db, 'products'), productData);
       }

@@ -98,11 +98,11 @@ function Settings() {
         </div>
         <div className="form-group">
           <label>Address</label>
-          <input
-            type="text"
+          <textarea
             name="address"
             value={shopDetails.address}
             onChange={handleChange}
+            rows="3"
             required
           />
         </div>

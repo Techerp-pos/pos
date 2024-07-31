@@ -211,7 +211,7 @@ function Sale() {
         dispatch({ type: 'CLEAR_CART' });
         localStorage.removeItem('cart');
         setLocalCart([]);
-      }, 3000);
+      }, 9000);
     } catch (error) {
       console.error('Error completing transaction: ', error);
       alert('Failed to complete transaction');
@@ -222,11 +222,10 @@ function Sale() {
     const printContent = `
       <style>
         body {
-          margin: 10px;
           display: flex;
           align-items: center;
           width: 100vw;
-          height: 100vh;
+          height: 92%;
           flex-direction: column;
         }
         .bill-container {
@@ -276,21 +275,19 @@ function Sale() {
           font-size: 30px; /* Adjusted font size for receipt paper */
         }
         .bill-footer {
-          margin-top: 10px;
           text-align: center;
           font-size: 30px; /* Adjusted font size for receipt paper */
         }
       </style>
-      <div class="bill-container">
-        <div class="bill-header">
+      <div class="bill-header">
           ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 150px;height: 150px;border-radius: 20px;margin-bottom: 30px;"` : ''}
-          <p>${shopDetails.name}</p>
+          <div>
+          <h2 style="font-size: 36px">${shopDetails.name}</h2>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
-          <h2>TechERP-POS</h2>
           <p>Invoice</p>
-          <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-        </div>
+          <p>${new Date().toLocaleDateString()} &nbsp; &nbsp;${new Date().toLocaleTimeString()}</p>
+          </div>      
         <table class="bill-items">
           <thead>
             <tr>
@@ -312,8 +309,9 @@ function Sale() {
           </tbody>
         </table>
         <div class="bill-summary">
-          <p>Total: ${order.total} OMR</p>
+          <p style="margin-right: 100px">Total: ${order.total} OMR</p>
         </div>
+        <img src="/images/qr.jpeg" alt="QR Code" style="width: 250px;height: 250px;" />
         <div class="bill-footer">
           <p>----Transaction Completed----</p>
         </div>
@@ -382,16 +380,12 @@ function Sale() {
               const cartItem = localCart.find(item => item.id === product.id) || { quantity: 0 };
               const isVisible = selectedCategory === null || selectedCategory.name === product.category;
               return (
-                <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`}>
+                <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`} onClick={() => handleQuantityChange(product, cartItem.quantity + 1)}>
                   <img src={product.imageUrl} alt={product.name} />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h3>{product.name}</h3>
                     <p style={{ color: 'green' }}>{product.price.toFixed(3)} OMR</p>
-                    <div className="incrementer">
-                      <button onClick={() => handleQuantityChange(product, cartItem.quantity - 1)} disabled={cartItem.quantity === 0}>-</button>
-                      <span>{cartItem.quantity}</span>
-                      <button onClick={() => handleQuantityChange(product, cartItem.quantity + 1)}>+</button>
-                    </div>
+                    {/* <span>{cartItem.quantity}</span> */}
                   </div>
                 </div>
               );
@@ -436,11 +430,7 @@ function Sale() {
                   <tr key={item.id} className="cart-item">
                     <td>{item.name}</td>
                     <td>
-                      <div className="incrementer" style={{ gap: '0px' }}>
-                        <button onClick={() => handleQuantityChange(item, item.quantity - 1)} disabled={item.quantity === 0}>-</button>
-                        <span>{item.quantity}</span>
-                        <button onClick={() => handleQuantityChange(item, item.quantity + 1)}>+</button>
-                      </div>
+                      <span>{item.quantity}</span>
                     </td>
                     <td>{item.price.toFixed(3)} OMR</td>
                     <td>{(item.price * item.quantity).toFixed(3)} OMR</td>

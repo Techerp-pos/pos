@@ -3,6 +3,7 @@ import { db } from '../config/firebase';
 import { collection, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { CartContext } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import Modal from './Modal'; // Assuming you have a modal component
 
 function SaleOrder() {
   const [categories, setCategories] = useState([]);
@@ -17,7 +18,6 @@ function SaleOrder() {
   const [status, setStatus] = useState('Pending');
   const [paymentType, setPaymentType] = useState('');
   const { currentUser } = useAuth();
-
   const { cart, dispatch } = useContext(CartContext);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ function SaleOrder() {
       const ordersCollection = collection(db, 'orders');
       const orderSnapshot = await getDocs(ordersCollection);
       let fetchedOrders = orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      fetchedOrders = fetchedOrders.filter(order => order.addedBy === currentUser.uid);
+      fetchedOrders = fetchedOrders.filter(order => order.addedBy === currentUser.uid && order.status !== 'Completed');
 
       // Sort orders manually by timestamp
       fetchedOrders.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
@@ -193,23 +193,22 @@ function SaleOrder() {
   const handlePrint = (order) => {
     const printContent = `
       <style>
-        body{
-        margin: 10px;
-        display: flex;
-        align-items: center;
-        width: 100vw;
-        height: 100vh;
-        flex-direction: column;
+        body {
+          display: flex;
+          align-items: center;
+          width: 100vw;
+          height: 90%;
+          flex-direction: column;
         }
         .bill-container {
           font-family: 'Arial', sans-serif;
           width: 95vw;
-          height: 90%;
           border: 1px solid #ccc;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: space-around;
+          // justify-content: space-around;
+          gap: 30px;
         }
         .bill-header {
           text-align: center;
@@ -218,24 +217,20 @@ function SaleOrder() {
           align-items: center;
           flex-direction: column;
         }
-      
         .bill-header h2 {
           margin: 0;
           font-size: 36px; /* Adjusted font size for receipt paper */
         }
-      
         .bill-header p {
           margin: 0;
           font-size: 28px; /* Adjusted font size for receipt paper */
         }
-      
         .bill-items,
         .transactions {
           width: 100%;
           border-collapse: collapse;
           height: 20%;
         }
-      
         .bill-items th,
         .bill-items td,
         .transactions th,
@@ -245,32 +240,29 @@ function SaleOrder() {
           text-align: left;
           font-size: 30px; /* Adjusted font size for receipt paper */
         }
-      
         .bill-summary {
-          margin-top: 10px;
+          height: 20%;
           width: 100%;
           text-align: right;
           font-size: 30px; /* Adjusted font size for receipt paper */
         }
-      
         .bill-footer {
-          margin-top: 10px;
           text-align: center;
           font-size: 30px; /* Adjusted font size for receipt paper */
         }
       </style>
-      
+      <div>
       <div class="bill-container">
         <div class="bill-header">
           ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 150px;height: 150px;border-radius: 20px;margin-bottom: 30px;"` : ''}
-          <p>${shopDetails.name}</p>
+          <div>
+          <h2 style="font-size: 36px">${shopDetails.name}</h2>
           <p>${shopDetails.address}</p>
           <p>${shopDetails.phone}</p>
-          <h2>TechERP-POS</h2>
-          <p>Invoice</p>
-          <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-        </div>
-        <table class="bill-items">
+          <p>Order Bill</p>
+          <p>${new Date().toLocaleDateString()} &nbsp; &nbsp;${new Date().toLocaleTimeString()}</p>
+          </div>      
+          <table class="bill-items">
           <thead>
             <tr>
               <th>Item</th>
@@ -293,12 +285,10 @@ function SaleOrder() {
         <div class="bill-summary">
           <p>Total: ${order.total} OMR</p>
         </div>
-        
-        <div class="bill-footer">
-          <p>Order Placed</p>
-          <p>No CASH REFUND</p>
-          <p>NO EXCHANGE</p>
         </div>
+        </div>
+        
+      </div>
       </div>
     `;
     const printWindow = window.open('', '');
@@ -354,18 +344,14 @@ function SaleOrder() {
               const cartItem = localCart.find(item => item.id === product.id) || { quantity: 0 };
               const isVisible = selectedCategory === null || selectedCategory.name === product.category;
               return (
-                <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`}>
+                <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`} onClick={() => handleQuantityChange(product, cartItem.quantity + 1)}>
                   {product.imageUrl && (
                     <img src={product.imageUrl} alt={product.name} />
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h3>{product.name}</h3>
                     <p style={{ color: 'green' }}>{product.price.toFixed(3)} OMR</p>
-                    <div className="incrementer">
-                      <button onClick={() => handleQuantityChange(product, cartItem.quantity - 1)} disabled={cartItem.quantity === 0}>-</button>
-                      <span>{cartItem.quantity}</span>
-                      <button onClick={() => handleQuantityChange(product, cartItem.quantity + 1)}>+</button>
-                    </div>
+                    {/* <span>{cartItem.quantity}</span> */}
                   </div>
                 </div>
               );
