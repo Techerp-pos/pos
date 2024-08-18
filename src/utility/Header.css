@@ -1,0 +1,91 @@
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    color: white;
+    transition: width 0.3s ease;
+    /* Add background color for better visibility */
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(38, 38, 40);
+}
+
+.sidebar.closed {
+    width: 60px;
+    /* Adjust as necessary */
+}
+
+.sidebar.open {
+    width: 250px;
+    /* Adjust as necessary */
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 10px;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.toggle-btn:hover {
+    background-color: transparent;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+nav ul li {
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    transition: background-color 0.3s ease;
+}
+
+nav ul li a img {
+    margin-right: 10px;
+}
+
+/* nav ul li a:hover {
+    background-color: #555;
+} */
+
+.active-link a {
+    /* background-color: #007bff; */
+    /* Highlight the active link */
+    color: white;
+    font-weight: bold;
+}
+
+.sidebar.closed .link-text {
+    display: none;
+    /* Hide text in the minimized sidebar */
+}
+
+.sidebar nav ul li {
+    padding: 3px 7px;
+    text-decoration: none;
+    font-size: 18px;
+    color: white;
+    display: block;
+    border: transparent;
+    border-radius: 5px;
+}
+
+.sidebar nav ul li a{
+    display: flex;
+}

@@ -18,7 +18,17 @@ import Sale from './components/Sale';
 import Settings from './components/Settings';
 import DailySales from './components/DailySales';
 import DayClose from './components/DayClose';
-
+import AddShop from './components/AddShop';
+import AddUser from './components/AddUser';
+import AddProducts from './components/AddProducts';
+import Product from './pages/Product';
+import VendorForm from './components/VendorForm'
+import VendorList from './components/VendorList';
+import CustomerList from './components/CustomerList';
+import Inventory from './components/InventoryList';
+import LocalPurchaseOrder from './components/LocalPurchaseOrder';
+import GoodsReceiveNote from './components/GoodsRecieveNote';
+import ViewList from './components/ViewList';
 function App() {
   return (
     <div className="app">
@@ -56,6 +66,16 @@ function PrivateRoutes() {
           <Route path='/sale' element={<Sale />} />
           <Route path='/settings' element={<Settings />} />
           <Route path='/day-close' element={<DayClose />} />
+          <Route path='/add-shop' element={<AddShop />} />
+          <Route path='/add-user' element={<AddUser />} />
+          <Route path='/add-products' element={<AddProducts />} />
+          <Route path='/product-page' element={<Product />}/>
+          <Route path='/vendor' element={<VendorList />} />
+          <Route path='/customer-page' element={<CustomerList />} />
+          <Route path='/inventory' element={<Inventory />} />
+          <Route path='/lpo' element={<LocalPurchaseOrder />} />
+          <Route path='grn' element={<GoodsReceiveNote />} />
+          <Route path='/view-list' element={<ViewList />} />
         </Routes>
       </div>
     </>

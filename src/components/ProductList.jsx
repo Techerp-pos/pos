@@ -1,10 +1,10 @@
-// src/components/ProductList.js
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import ProductModal from './ProductModal';
 import AddEditProduct from './AddEditProduct';
 import { useAuth } from '../contexts/AuthContext';
+import '../utility/ProductList.css';
 
 const ProductList = () => {
     const { currentUser, isSuperAdmin } = useAuth();
@@ -33,31 +33,35 @@ const ProductList = () => {
     };
 
     return (
-        <div className="product-list">
-            <div className='product-list-button'>
+        <div className="product-list-container">
+            <div className='product-list-header' style={{display: 'flex', alignItems: 'space-between', width: '100%'}}>
                 <h2>Product List</h2>
-                <button className="success-btn" onClick={() => { setSelectedProduct(null); setIsModalOpen(true); }}>Add Product</button>
+                <button className="add-product-btn" onClick={() => { setSelectedProduct(null); setIsModalOpen(true); }}><img width="24" height="24" src="https://img.icons8.com/parakeet-line/48/add.png" alt="add"/></button>
             </div>
 
-            <table>
+            <table className="product-table">
                 <thead>
                     <tr>
+                        <th>Code</th>
                         <th>Name</th>
-                        <th>Category</th>
+                        <th>Department</th>
+                        <th>Vendor</th>
                         <th>Price</th>
-                        <th>Stock</th>
+                        <th>Barcode</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {products.map(product => (
                         <tr key={product.id}>
+                            <td>{product.code}</td>
                             <td>{product.name}</td>
-                            <td>{product.category}</td>
+                            <td>{product.department}</td>
+                            <td>{product.vendor}</td>
                             <td>{product.price}</td>
-                            <td>{product.stock}</td>
+                            <td>{product.barcode}</td>
                             <td>
-                                <button onClick={() => handleEditProduct(product)}>Edit</button>
+                                <button className="edit-btn" onClick={() => handleEditProduct(product)}>Edit</button>
                             </td>
                         </tr>
                     ))}

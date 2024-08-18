@@ -1,0 +1,38 @@
+/* AddEditCustomer.css */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.dual-input {
+    display: flex;
+    justify-content: space-between;
+}
+
+.dual-input label,
+.dual-input input,
+.dual-input select {
+    width: 48%;
+    /* Adjust width to fit two inputs in one row */
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.form-actions button {
+    padding: 8px 16px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-actions button:hover {
+    background-color: #0056b3;
+}

@@ -23,7 +23,7 @@ function ShopDetails() {
                         setShopId(shopId);
 
                         // Get the shop details using the shopId
-                        const shopDocRef = doc(db, 'shopDetails', shopId);
+                        const shopDocRef = doc(db, 'shops', shopId);
                         const shopDocSnap = await getDoc(shopDocRef);
 
                         if (shopDocSnap.exists()) {

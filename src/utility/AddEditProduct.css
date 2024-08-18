@@ -1,0 +1,110 @@
+.product-list-container{
+    width: auto;
+}
+
+.product-modal-content{
+    max-height: 90vh;
+    overflow-y: scroll;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    color: white;
+    border-radius: 4px 4px 0 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.modal-tabs {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    background-color: #f2f2f2;
+}
+
+.product-form {
+    padding: 20px;
+    background-color: #fff;
+    max-width: 1200px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    font-size: 16px;
+}
+
+.tab-btn.active {
+    border-bottom: 2px solid #007bff;
+    font-weight: bold;
+}
+
+.tab-content {
+    padding: 20px;
+    background-color: white;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.dual-input {
+    display: flex;
+    gap: 15px;
+}
+
+/* .form-group.dual-input input,
+.form-group.dual-input select {
+    width: 100%;
+} */
+
+.pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pricing-table th,
+.pricing-table td {
+    border: 1px solid #ddd;
+}
+
+/* .pricing-table th {
+    background-color: #f2f2f2;
+} */
+
+/* .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+    background-color: #f2f2f2;
+    border-top: 1px solid #ddd;
+} */
+
+.delete-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.save-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+}
