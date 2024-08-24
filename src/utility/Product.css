@@ -48,3 +48,12 @@
     color: white;
     background-color: #007bff;
 }
+
+input[type="text"],
+input[type="number"],
+select {
+    width: fit-content;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}

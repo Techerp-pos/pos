@@ -1,5 +1,4 @@
 .category-list-container {
-    width: 100%;
     padding: 20px;
     margin: 20px;
     background-color: #fff;
@@ -35,18 +34,18 @@
     text-align: left;
 }
 
-.tab-content{
+.tab-content {
     padding: 0%;
 }
 
 .category-table th,
 .category-table td {
-    padding: 12px;
+    /* padding: 12px; */
     border: 1px solid #ddd;
 }
 
 
-.category-table th{
+.category-table th {
     background-color: white;
     color: black;
 }

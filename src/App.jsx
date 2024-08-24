@@ -14,7 +14,7 @@ import SaleOrder from './components/SaleOrder';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
-import Sale from './components/Sale';
+// import Sale from './components/Sale';
 import Settings from './components/Settings';
 import DailySales from './components/DailySales';
 import DayClose from './components/DayClose';
@@ -29,6 +29,10 @@ import Inventory from './components/InventoryList';
 import LocalPurchaseOrder from './components/LocalPurchaseOrder';
 import GoodsReceiveNote from './components/GoodsRecieveNote';
 import ViewList from './components/ViewList';
+import SalePOS from './components/SalePOS';
+import SaleOrderPOS from './components/SaleOrderPOS';
+import DayClosePOS from './components/DayClosePOS';
+import GoodsReturnVoucher from './components/GoodsReturnVoucher';
 function App() {
   return (
     <div className="app">
@@ -62,20 +66,22 @@ function PrivateRoutes() {
           <Route path="/departments" element={<Departments />} />
           <Route path="/terminals" element={<Terminals />} />
           <Route path="/add-category" element={<AddCategory />} />
-          <Route path="/sale-order" element={<SaleOrder />} />
-          <Route path='/sale' element={<Sale />} />
+          <Route path="/sale-order" element={<SaleOrderPOS />} />
+          <Route path='/sale' element={<SalePOS />} />
           <Route path='/settings' element={<Settings />} />
-          <Route path='/day-close' element={<DayClose />} />
+          <Route path='/day-close' element={<DayClosePOS />} />
           <Route path='/add-shop' element={<AddShop />} />
           <Route path='/add-user' element={<AddUser />} />
           <Route path='/add-products' element={<AddProducts />} />
-          <Route path='/product-page' element={<Product />}/>
+          <Route path='/product-page' element={<Product />} />
           <Route path='/vendor' element={<VendorList />} />
           <Route path='/customer-page' element={<CustomerList />} />
           <Route path='/inventory' element={<Inventory />} />
           <Route path='/lpo' element={<LocalPurchaseOrder />} />
           <Route path='grn' element={<GoodsReceiveNote />} />
           <Route path='/view-list' element={<ViewList />} />
+          <Route path="/grv-list" element={<ViewList orderType="GRV" />} />
+          <Route path='/grv' element={<GoodsReturnVoucher />} />
         </Routes>
       </div>
     </>

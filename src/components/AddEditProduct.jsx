@@ -18,7 +18,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     category: '',
     taxType: 'vat 5%', // Set default tax type
     barcode: '',
-    stock: 0,
+    stock: 0, // Added stock input field
     pricing: [{ unitType: 'PCS', factor: 1, price: '', margin: '', barcode: '' }],
     imageUrl: '',
     addedBy: currentUser ? currentUser.uid : 'Unknown',
@@ -173,7 +173,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
         quantity: `${stockChange > 0 ? '+' : ''}${stockChange}`,
         stock: productData.stock,
         price: productData.pricing[0].price,
-        updatedBy: currentUser.uid,
+        updatedBy: currentUser.email,
       });
 
       onClose();
@@ -258,7 +258,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
   };
 
   return (
-    <div>
+    <div className='product-modal-container'>
       <div className="modal-header">
         <h2>{initialProduct ? `${product.name}` : 'Add New Product'}</h2>
         <button className="close-button" onClick={onClose}>X</button>
@@ -388,12 +388,14 @@ function AddEditProduct({ onClose, product: initialProduct }) {
             </div>
             <div className="form-group dual-input">
               <label>Tax Type</label>
-              <input
-                type="text"
+              <select
                 name="taxType"
                 value={product.taxType}
                 onChange={handleChange}
-              />
+              >
+                <option value="vat 0%">VAT 0%</option>
+                <option value="vat 5%">VAT 5%</option>
+              </select>
               <label>Barcode</label>
               <input
                 type="number"
@@ -409,6 +411,16 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 }}
               />
               <svg ref={barcodeRef}></svg>
+            </div>
+            <div className="form-group">
+              <label>Stock</label>
+              <input
+                type="number"
+                name="stock"
+                value={product.stock}
+                onChange={handleChange}
+                required
+              />
             </div>
             <button type="button" onClick={handleAddPricing}>
               +
@@ -488,9 +500,11 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                       />
                     </td>
                     <td>
-                      <button type="button" onClick={() => handleRemovePricing(index)}>
-                        X
-                      </button>
+                      {index > 0 && (
+                        <button type="button" onClick={() => handleRemovePricing(index)}>
+                          X
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

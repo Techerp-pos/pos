@@ -1,8 +1,15 @@
-.product-list-container{
-    width: auto;
+.product-modal-container {
+    min-height: 90vh;
+    background-color: white;
+    width: 90vw;
 }
 
-.product-modal-content{
+.product-list-container {
+    width: auto;
+    border-radius: 2px;
+}
+
+.product-modal-content {
     max-height: 90vh;
     overflow-y: scroll;
 }
@@ -36,6 +43,7 @@
     padding: 20px;
     background-color: #fff;
     max-width: 1200px;
+    flex-direction: column;
 }
 
 .tab-btn {
@@ -107,4 +115,9 @@
     border: none;
     padding: 8px 16px;
     cursor: pointer;
+}
+
+.batch-table,
+.history-table {
+    min-height: 50vh;
 }

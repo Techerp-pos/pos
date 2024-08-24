@@ -22,7 +22,7 @@ function DailySales() {
       const ordersSnapshot = await getDocs(collection(db, 'orders'));
       const orders = ordersSnapshot.docs
         .map(doc => doc.data())
-        .filter(order => order.addedBy === currentUser.uid && order.status === 'Completed');
+        .filter(order => order.shopCode === currentUser.shopCode && order.status === 'Completed');
 
       const today = new Date().toISOString().split('T')[0];
 
@@ -32,9 +32,9 @@ function DailySales() {
       const filteredOrders = orders.filter(order => order.orderDate === today);
 
       filteredOrders.forEach((data) => {
-        if (data.paymentType === 'cash') {
+        if (data.paymentMethod === 'cash') {
           cashTotal += parseFloat(data.total);
-        } else if (data.paymentType === 'card') {
+        } else if (data.paymentMethod === 'card') {
           cardTotal += parseFloat(data.total);
         }
         overallTotal += parseFloat(data.total);
@@ -49,21 +49,19 @@ function DailySales() {
   }, [currentUser]);
 
   const fetchMonthlyData = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !startDate || !endDate) return;
 
     const ordersSnapshot = await getDocs(collection(db, 'orders'));
     const orders = ordersSnapshot.docs
       .map(doc => doc.data())
-      .filter(order => order.addedBy === currentUser.uid && order.status === 'Completed');
+      .filter(order =>
+        order.shopCode === currentUser.shopCode &&
+        order.status === 'Completed' &&
+        new Date(order.orderDate) >= new Date(startDate) &&
+        new Date(order.orderDate) <= new Date(endDate)
+      );
 
-    const filteredOrders = orders.filter(order => {
-      const orderDate = new Date(order.orderDate);
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      return orderDate >= start && orderDate <= end;
-    });
-
-    setMonthlyData(filteredOrders);
+    setMonthlyData(orders);
   };
 
   const generatePDF = () => {
@@ -72,12 +70,12 @@ function DailySales() {
     doc.autoTable({
       head: [['Order ID', 'Date', 'Total', 'Status', 'Items', 'Discount']],
       body: monthlyData.map(order => [
-        order.orderId,
+        order.orderNumber,
         order.orderDate,
         order.total,
         order.status,
-        order.cart.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
-        order.discount
+        order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
+        order.discount || '0'
       ])
     });
     doc.save('report.pdf');
@@ -86,12 +84,12 @@ function DailySales() {
   const generateExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
       monthlyData.map(order => ({
-        'Order ID': order.orderId,
+        'Order ID': order.orderNumber,
         Date: order.orderDate,
         Total: order.total,
         Status: order.status,
-        Items: order.cart.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
-        Discount: order.discount
+        Items: order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
+        Discount: order.discount || '0'
       }))
     );
     const workbook = XLSX.utils.book_new();

@@ -34,7 +34,8 @@ function AddCategory() {
         name: categoryName,
         description: description,
         imageUrl: imageUrl,
-        addedBy: currentUser ? currentUser.uid : 'Unknown'
+        addedBy: currentUser ? currentUser.uid : 'Unknown',
+        shopCode: currentUser.shopCode
       });
 
       setCategoryName('');

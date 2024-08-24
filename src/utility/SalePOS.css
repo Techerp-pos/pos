@@ -1,0 +1,230 @@
+.sale-pos {
+    display: flex;
+    height: 100vh;
+    padding: 20px;
+    gap: 10px;
+}
+
+.left-panel {
+    width: 60%;
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.search-bar {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.sales-table th,
+.sales-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+.sales-summary {
+    font-size: 18px;
+    text-align: right;
+}
+
+.right-panel {
+    width: 40%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.departments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.departments button {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+}
+
+.items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    height: 90vh;
+    overflow-y: scroll;
+    flex-direction: column;
+}
+
+.product-card-sale {
+    width: 100px;
+    height: 50px;
+    text-align: center;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    padding: 10px;
+    margin: 5px;
+}
+
+.product-card-sale p {
+    margin: 5px 0;
+}
+
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.action-buttons button {
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.payment-btn {
+    background-color: #28a745;
+    padding: 30px;
+}
+
+.remove {
+    background-color: red;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 10px;
+}
+
+.keypad button {
+    padding: 20px;
+    background-color: purple;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+/* Styles for the Popup */
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    /* Make sure it appears on top of other elements */
+}
+
+.popup-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    width: 300px;
+}
+
+.popup-content p {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: #333;
+}
+
+.popup-content button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.popup-content button:first-of-type {
+    background-color: #28a745;
+    color: white;
+}
+
+.popup-content button:last-of-type {
+    background-color: #dc3545;
+    color: white;
+}
+
+.selected-row {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Search container */
+.search-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Search dropdown */
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: scroll;
+    z-index: 10;
+    /* Ensure it appears above other elements */
+}
+
+/* Individual item in the dropdown */
+.search-item {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* Hover effect for search items */
+.search-item:hover {
+    background-color: #f0f0f0;
+}
+
+/* Active state for arrow key navigation */
+.search-item.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Style the search bar */
+.search-bar {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+    margin-bottom: 0px;
+}

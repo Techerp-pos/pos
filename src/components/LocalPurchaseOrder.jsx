@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, doc, query, where, updateDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, query, where, orderBy, updateDoc, getDocs, setDoc, addDoc } from 'firebase/firestore'; // Added orderBy import
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import Select from 'react-select';
 import '../utility/Lpo.css';
 
 const LocalPurchaseOrder = () => {
@@ -41,7 +42,7 @@ const LocalPurchaseOrder = () => {
             ).filter(item => item.displayName.toLowerCase().includes(searchTerm));
             setFilteredProducts(filtered);
         } else {
-            setFilteredProducts(allProducts);
+            setFilteredProducts([]);
         }
     }, [orderItems, activeInputIndex, allProducts]);
 
@@ -71,14 +72,14 @@ const LocalPurchaseOrder = () => {
 
     const handleItemChange = (index, value) => {
         const newOrderItems = [...orderItems];
-        newOrderItems[index].item = value;
+        newOrderItems[index].item = value || ''; // Ensure no undefined value
         setOrderItems(newOrderItems);
         setActiveInputIndex(index);
     };
 
     const handleFieldChange = (index, field, value) => {
         const newOrderItems = [...orderItems];
-        newOrderItems[index][field] = value || '';  // Ensure no undefined values
+        newOrderItems[index][field] = value || ''; // Ensure no undefined value
         setOrderItems(newOrderItems);
     };
 
@@ -109,14 +110,20 @@ const LocalPurchaseOrder = () => {
         setActiveVendor(false);
     };
 
+    const handleKeyDown = (e, index, product) => {
+        if (e.key === 'Enter' && filteredProducts.length > 0) {
+            handleProductSelect(index, filteredProducts[0]);
+        }
+    };
+
     const generateNumericId = async () => {
         const lastOrderRef = collection(db, 'purchaseOrders');
-        const lastOrderQuery = query(lastOrderRef, where('shopCode', '==', currentUser.shopCode));
+        const lastOrderQuery = query(lastOrderRef, where('shopCode', '==', currentUser.shopCode), orderBy('createdAt', 'desc'), limit(1)); // Added orderBy and limit
         const querySnapshot = await getDocs(lastOrderQuery);
 
         if (!querySnapshot.empty) {
-            const lastOrder = querySnapshot.docs[querySnapshot.docs.length - 1];
-            const lastOrderId = parseInt(lastOrder.id, 10);
+            const lastOrder = querySnapshot.docs[0].id;
+            const lastOrderId = parseInt(lastOrder, 10);
             return (lastOrderId + 1).toString().padStart(5, '0');
         } else {
             return '00001';
@@ -249,10 +256,11 @@ const LocalPurchaseOrder = () => {
                                 <td>
                                     <input
                                         type="text"
-                                        value={item.item}
+                                        value={item.item || ''}
                                         onChange={(e) => handleItemChange(index, e.target.value)}
                                         placeholder="Search or scan item"
                                         onFocus={() => setActiveInputIndex(index)}
+                                        onKeyDown={(e) => handleKeyDown(e, index, filteredProducts[0])}
                                     />
                                     {filteredProducts.length > 0 && activeInputIndex === index && (
                                         <ul className="dropdown">
@@ -267,21 +275,21 @@ const LocalPurchaseOrder = () => {
                                 <td>
                                     <input
                                         type="text"
-                                        value={item.uom}
+                                        value={item.uom || ''}
                                         onChange={(e) => handleFieldChange(index, 'uom', e.target.value)}
                                     />
                                 </td>
                                 <td>
                                     <input
                                         type="number"
-                                        value={item.quantity}
+                                        value={item.quantity || 0}
                                         onChange={(e) => handleFieldChange(index, 'quantity', e.target.value)}
                                     />
                                 </td>
                                 <td>
                                     <input
                                         type="number"
-                                        value={item.cost}
+                                        value={item.cost || 0}
                                         onChange={(e) => handleFieldChange(index, 'cost', e.target.value)}
                                     />
                                 </td>

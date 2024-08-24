@@ -1,39 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import '../utility/ViewList.css'
-const ViewList = () => {
+import '../utility/ViewList.css';
+
+const ViewList = ({ orderType }) => {
     const [records, setRecords] = useState([]);
 
     useEffect(() => {
         const fetchRecords = async () => {
             try {
-                const purchaseOrdersRef = collection(db, 'purchaseOrders');
-                const goodsReceiveNotesRef = collection(db, 'goodsReceiveNotes');
+                let collectionName = '';
+                if (orderType === 'GRV') {
+                    collectionName = 'goodsReturnVouchers';
+                } else if (orderType === 'LPO') {
+                    collectionName = 'purchaseOrders';
+                } else if (orderType === 'GRN') {
+                    collectionName = 'goodsReceiveNotes';
+                } else {
+                    console.error('Invalid order type');
+                    return;
+                }
 
-                const purchaseOrdersSnapshot = await getDocs(query(purchaseOrdersRef));
-                const goodsReceiveNotesSnapshot = await getDocs(query(goodsReceiveNotesRef));
+                const ordersRef = collection(db, collectionName);
+                const ordersSnapshot = await getDocs(query(ordersRef));
+                const orders = ordersSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    orderType
+                }));
 
-                const purchaseOrders = purchaseOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), orderType: 'LPO' }));
-                const goodsReceiveNotes = goodsReceiveNotesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), orderType: 'GRN' }));
+                // Sorting by date
+                orders.sort((a, b) => new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000));
 
-                const combinedRecords = [...purchaseOrders, ...goodsReceiveNotes];
-
-                // Sorting by date, you can modify this depending on your requirement
-                combinedRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                setRecords(combinedRecords);
+                setRecords(orders);
             } catch (error) {
                 console.error('Error fetching records:', error);
             }
         };
 
         fetchRecords();
-    }, []);
+    }, [orderType]);
 
     return (
         <div className="view-list">
-            <h2>Purchases</h2>
+            <h2>{orderType} List</h2>
             <table>
                 <thead>
                     <tr>
@@ -51,14 +61,14 @@ const ViewList = () => {
                     {records.map((record) => (
                         <tr key={record.id}>
                             <td>{record.id}</td>
-                            <td>{record.date ? new Date(record.date.seconds * 1000).toLocaleDateString() : ''}</td>
-                            <td>{record.invoiceNumber}</td>
-                            <td>{record.vendor}</td>
+                            <td>{record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString() : ''}</td>
+                            <td>{record.invoiceNumber || 'N/A'}</td>
+                            <td>{record.vendor || 'N/A'}</td>
                             <td>{record.orderType}</td>
-                            <td>{record.status}</td>
-                            <td>{record.finalAmount}</td>
+                            <td>{record.status || 'N/A'}</td>
+                            <td>{record.finalAmount || 'N/A'}</td>
                             <td>
-                                <button onClick={() => handleEdit(record.id, record.orderType)}>Edit</button>
+                                <button>Edit</button>
                             </td>
                         </tr>
                     ))}

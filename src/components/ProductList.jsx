@@ -36,7 +36,9 @@ const ProductList = () => {
         <div className="product-list-container">
             <div className='product-list-header' style={{display: 'flex', alignItems: 'space-between', width: '100%'}}>
                 <h2>Product List</h2>
-                <button className="add-product-btn" onClick={() => { setSelectedProduct(null); setIsModalOpen(true); }}><img width="24" height="24" src="https://img.icons8.com/parakeet-line/48/add.png" alt="add"/></button>
+                <button className="add-product-btn" onClick={() => { setSelectedProduct(null); setIsModalOpen(true); }}>
+                    <img width="24" height="24" src="https://img.icons8.com/parakeet-line/48/add.png" alt="add"/>
+                </button>
             </div>
 
             <table className="product-table">
@@ -58,7 +60,7 @@ const ProductList = () => {
                             <td>{product.name}</td>
                             <td>{product.department}</td>
                             <td>{product.vendor}</td>
-                            <td>{product.price}</td>
+                            <td>{product.price ? product.price.toFixed(3) : 'N/A'}</td>
                             <td>{product.barcode}</td>
                             <td>
                                 <button className="edit-btn" onClick={() => handleEditProduct(product)}>Edit</button>
