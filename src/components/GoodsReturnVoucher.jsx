@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, doc, query, where, updateDoc, getDocs, setDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, updateDoc, getDocs, setDoc, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Select from 'react-select';
@@ -37,6 +37,7 @@ const GoodsReturnVoucher = () => {
         fetchProducts();
     }, [currentUser.shopCode]);
 
+    // Handle selection of a product in the return voucher
     const handleProductSelect = (index, selectedOption) => {
         const newReturnItems = [...returnItems];
         const product = allProducts.find(p => p.id === selectedOption.value);
@@ -56,6 +57,7 @@ const GoodsReturnVoucher = () => {
         }
     };
 
+    // Handle changes in the quantity, cost, or tax fields
     const handleFieldChange = (index, field, value) => {
         const newReturnItems = [...returnItems];
         newReturnItems[index][field] = value || '';  // Ensure no undefined values
@@ -66,6 +68,7 @@ const GoodsReturnVoucher = () => {
         updateTotals(newReturnItems);
     };
 
+    // Update total cost and total tax
     const updateTotals = (items) => {
         const totalCost = items.reduce((total, item) => total + parseFloat(item.totalCost || 0), 0);
         const totalTax = items.reduce((total, item) => total + (item.receivedQty * item.cost * (item.tax / 100)), 0);
@@ -73,6 +76,7 @@ const GoodsReturnVoucher = () => {
         setTotalTax(totalTax.toFixed(2));
     };
 
+    // Generate a new ID for the goods return voucher
     const generateNumericId = async () => {
         const lastReturnRef = collection(db, 'goodsReturnVouchers');
         const lastReturnQuery = query(lastReturnRef, where('shopCode', '==', currentUser.shopCode));
@@ -87,62 +91,90 @@ const GoodsReturnVoucher = () => {
         }
     };
 
-    const saveReturn = async (status) => {
+    // Save the goods return voucher and update stocks and history
+    const saveReturn = async (status = 'GRV') => {
         if (!selectedVendor) {
             setErrorMessage('Please select a vendor before saving the return.');
             return;
         }
-
+    
         setErrorMessage('');
-
+    
         try {
             const numericId = await generateNumericId();
-
+    
             const returnData = {
                 items: returnItems,
                 vendor: selectedVendor,
-                status: status,
+                status: status,  // Ensure status is set as 'GRV'
                 shopCode: currentUser.shopCode,
                 createdAt: new Date(),
                 addedBy: currentUser.uid
             };
-
+    
             await setDoc(doc(db, 'goodsReturnVouchers', numericId), returnData);
-
-            alert(`Goods Return Voucher ${status} successfully!`);
-
+    
+            console.log('Goods Return Voucher saved successfully:', numericId);
+    
             await Promise.all(returnItems.map(async (item) => {
                 const productQuery = query(
                     collection(db, 'products'),
                     where('name', '==', item.item.split(' (')[0]), // match product name only
-                    where('unitType', '==', item.uom), // match unitType
                     where('shopCode', '==', currentUser.shopCode)
                 );
-
+    
                 const querySnapshot = await getDocs(productQuery);
                 if (!querySnapshot.empty) {
                     const product = querySnapshot.docs[0].data();
                     const productId = querySnapshot.docs[0].id;
-
-                    // Update Product Stock and Price
+    
+                    // Update Product Stock
                     const newStock = product.stock - item.receivedQty;
-
                     const productRef = doc(db, 'products', productId);
                     await updateDoc(productRef, {
                         stock: newStock,
                     });
-
+    
+                    console.log(`Updated stock for product ID: ${productId}. New stock: ${newStock}`);
+    
+                    // Update Stock Batch
+                    const batchRef = collection(db, 'productBatches');
+                    const batchQuery = query(batchRef, where('productId', '==', productId), orderBy('batchDate', 'asc'));
+                    const batchSnapshot = await getDocs(batchQuery);
+    
+                    let qtyToDeduct = item.receivedQty;
+    
+                    for (const batchDoc of batchSnapshot.docs) {
+                        const batchData = batchDoc.data();
+                        const remainingQty = batchData.remainingQty;
+    
+                        if (remainingQty > 0) {
+                            const deductQty = Math.min(remainingQty, qtyToDeduct);
+                            const updatedQty = remainingQty - deductQty;
+                            await updateDoc(batchDoc.ref, { remainingQty: updatedQty });
+    
+                            qtyToDeduct -= deductQty;
+                            console.log(`Deducted ${deductQty} from batch ${batchDoc.id}. Remaining qty in batch: ${updatedQty}`);
+                            if (qtyToDeduct <= 0) break;
+                        }
+                    }
+    
                     // Add to Product History
                     const historyData = {
                         productId: productId,
                         date: new Date(),
-                        activityType: 'GRV',
+                        activityType: 'GRV', // Activity type set to GRV
                         description: `Goods Return Voucher created`,
-                        quantity: -item.receivedQty,
-                        stock: newStock,
+                        quantity: -item.receivedQty, // Deducted quantity recorded
+                        stock: newStock, // Updated stock after deduction
+                        price: item.cost,
                         updatedBy: currentUser.uid
                     };
                     await addDoc(collection(db, 'productHistory'), historyData);
+    
+                    console.log(`Product history updated for product ID: ${productId}`);
+                } else {
+                    console.error(`Product not found: ${item.item}`);
                 }
             }));
         } catch (error) {
@@ -224,7 +256,7 @@ const GoodsReturnVoucher = () => {
                 </div>
                 <div className="order-actions">
                     <button className="save-draft-btn" onClick={() => saveReturn('draft')}>Save Draft</button>
-                    <button className="post-btn" onClick={() => saveReturn('completed')}>Post</button>
+                    <button className="post-btn" onClick={() => saveReturn('GRV')}>Post</button>
                 </div>
             </div>
         </div>

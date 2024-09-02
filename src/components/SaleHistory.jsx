@@ -1,22 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { jsPDF } from 'jspdf';
+import qz from 'qz-tray';
 import '../utility/SaleHistory.css';
 
-function SaleHistory({ onClose }) {
+function SaleHistory({ onClose, onOpenOrder }) {
     const { currentUser } = useAuth();
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [shopDetails, setShopDetails] = useState(null);
 
     useEffect(() => {
-        // Create a query to fetch only the orders with the current user's shopCode
         const salesQuery = query(
             collection(db, 'orders'),
             where('shopCode', '==', currentUser.shopCode)
         );
 
-        // Listen for real-time updates using onSnapshot
         const unsubscribe = onSnapshot(salesQuery, (snapshot) => {
             const salesList = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -29,8 +30,21 @@ function SaleHistory({ onClose }) {
             setLoading(false);
         });
 
-        // Cleanup the subscription on component unmount
         return () => unsubscribe();
+    }, [currentUser.shopCode]);
+
+    useEffect(() => {
+        const fetchShopDetails = async () => {
+            if (currentUser?.shopCode) {
+                const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
+                const shopSnapshot = await getDocs(shopQuery);
+                if (!shopSnapshot.empty) {
+                    setShopDetails(shopSnapshot.docs[0].data());
+                }
+            }
+        };
+
+        fetchShopDetails();
     }, [currentUser.shopCode]);
 
     return (
@@ -63,9 +77,9 @@ function SaleHistory({ onClose }) {
                                     <td>{sale.terminal || 'SALE'}</td>
                                     <td>{parseFloat(sale.total).toFixed(3)} OMR</td>
                                     <td>
-                                        <button onClick={() => alert('Print')}>Print</button>
-                                        <button onClick={() => alert('Download')}>Download</button>
-                                        <button onClick={() => alert('View')}>View</button>
+                                        <button onClick={() => handlePrint(sale)}>Print</button>
+                                        <button onClick={() => handleDownload(sale)}>Download</button>
+                                        <button onClick={() => onOpenOrder(sale)}>Open</button>
                                     </td>
                                 </tr>
                             ))

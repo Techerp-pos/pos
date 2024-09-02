@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import qz from 'qz-tray'; // Import QZ Tray for printer connection
-import '../utility/PaymentSection.css'; // Import your CSS for styling
+import qz from 'qz-tray';
+import '../utility/PaymentSection.css';
 
 function PaymentSection({ total, onClose, onPaymentComplete }) {
     const [selectedMethod, setSelectedMethod] = useState('CASH');
@@ -11,13 +11,21 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
 
     const paymentMethods = ['CASH', 'CARD'];
 
-    // Connect to QZ Tray when the component mounts
     useEffect(() => {
         const connectToQZTray = async () => {
-            if (isConnected || isConnecting) return; // Prevent multiple connections
+            if (isConnecting) return; // Prevent multiple connections
 
             try {
                 setIsConnecting(true);
+
+                // Check if there's an existing connection
+                if (isConnected) {
+                    await qz.websocket.disconnect();
+                    setIsConnected(false);
+                    console.log("Existing connection closed.");
+                }
+
+                // Attempt to connect to QZ Tray
                 await qz.websocket.connect();
                 setIsConnected(true);
                 console.log("Connected to QZ Tray");
@@ -30,7 +38,6 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
 
         connectToQZTray();
 
-        // Clean up the connection when the component unmounts
         return () => {
             if (isConnected) {
                 qz.websocket.disconnect().then(() => {
@@ -56,13 +63,11 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
             setAmount('');
             setBalance(0);
         } else {
-            // Append the value from the keypad to the amount
             setAmount(prev => prev + value);
         }
     };
 
     const handlePaymentCompletion = () => {
-        // Only proceed if the amount is entered
         if (amount) {
             const parsedAmount = parseFloat(amount || '0');
             const calculatedBalance = parsedAmount - parseFloat(total);
@@ -73,14 +78,12 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
                 balance: calculatedBalance.toFixed(3),
             });
 
-            // Print the receipt if connected
             if (isConnected) {
                 handlePrintReceipt();
             } else {
                 console.error("Cannot print, not connected to QZ Tray");
             }
 
-            // Close the modal after completing payment
             onClose();
         } else {
             alert('Please enter the payment amount.');
@@ -93,22 +96,21 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
             return;
         }
 
-        const config = qz.configs.create("RONGTA 80mm Series Printer"); // Replace with your printer name
+        const config = qz.configs.create("RONGTA 80mm Series Printer");
 
-        // Define the print data with ESC/POS commands for thermal printers
         const data = [
-            '\x1B\x40', // Initialize printer
-            '\x1B\x21\x08', // Bold text
+            '\x1B\x40',
+            '\x1B\x21\x08',
             'Receipt\n',
-            '\x1B\x21\x00', // Normal text
+            '\x1B\x21\x00',
             '--------------------------\n',
             `Total: ${parseFloat(total).toFixed(3)} OMR\n`,
             `Paid: ${parseFloat(amount).toFixed(3)} OMR\n`,
             `Balance: ${balance.toFixed(3)} OMR\n`,
             '--------------------------\n',
             'Thank you for your purchase!\n',
-            '\x1B\x64\x03', // Feed 3 lines to ensure the print is clear
-            '\x1D\x56\x41', // Cut paper after the content
+            '\x1B\x64\x03',
+            '\x1D\x56\x41',
         ];
 
         qz.print(config, data).then(() => {
@@ -157,7 +159,7 @@ function PaymentSection({ total, onClose, onPaymentComplete }) {
                     <button onClick={() => handleKeypadClick('Clear')} style={{ background: 'red' }}>Clear</button>
                     <div className="payment-actions">
                         <button onClick={handlePaymentCompletion} style={{ background: 'green' }}>Complete</button>
-                        <button onClick={handlePrintReceipt} style={{ background: 'blue' }}>Print</button>
+                        {/* <button onClick={handlePrintReceipt} style={{ background: 'blue' }}>Print</button> */}
                     </div>
                 </div>
             </div>

@@ -17,6 +17,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     department: '',
     category: '',
     taxType: 'vat 5%', // Set default tax type
+    vat: 5, // Initial VAT value based on default taxType
     barcode: '',
     stock: 0, // Added stock input field
     pricing: [{ unitType: 'PCS', factor: 1, price: '', margin: '', barcode: '' }],
@@ -45,6 +46,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
         barcode: initialProduct.barcode,
         stock: initialProduct.stock,
         pricing: initialProduct.pricing || [{ unitType: 'PCS', factor: 1, price: '', margin: '', barcode: '' }],
+        vat: initialProduct.taxType === 'vat 5%' ? 5 : 0, // Initialize VAT based on taxType
       });
       fetchProductHistory(initialProduct.id);
       fetchBatches(initialProduct.id);
@@ -126,6 +128,18 @@ function AddEditProduct({ onClose, product: initialProduct }) {
   const handleRemovePricing = (index) => {
     const updatedPricing = product.pricing.filter((_, i) => i !== index);
     setProduct({ ...product, pricing: updatedPricing });
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'taxType') {
+      // Update VAT value based on selected taxType
+      const vatValue = value === 'vat 5%' ? 5 : 0;
+      setProduct({ ...product, taxType: value, vat: vatValue });
+    } else {
+      setProduct({ ...product, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -212,11 +226,6 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     );
     const historySnapshot = await getDocs(q);
     setHistory(historySnapshot.docs.map(doc => doc.data()));
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProduct({ ...product, [name]: value });
   };
 
   const handleImageChange = (e) => {
@@ -469,6 +478,12 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                         onChange={(e) => handlePricingChange(index, 'price', e.target.value)}
                         required
                       />
+                      {/* Calculate cost including VAT */}
+                      <input
+                        type="number"
+                        value={(pricingItem.price * (1 + product.vat / 100)).toFixed(2)}
+                        readOnly
+                      />
                     </td>
                     <td>
                       <input
@@ -480,9 +495,8 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                     <td>
                       <input
                         type="number"
-                        value={pricingItem.price}
-                        onChange={(e) => handlePricingChange(index, 'price', e.target.value)}
-                        required
+                        value={(pricingItem.price * (1 + product.vat / 100)).toFixed(2)}
+                        readOnly
                       />
                     </td>
                     <td>

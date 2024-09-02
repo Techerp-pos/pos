@@ -23,11 +23,17 @@ const ViewList = ({ orderType }) => {
 
                 const ordersRef = collection(db, collectionName);
                 const ordersSnapshot = await getDocs(query(ordersRef));
-                const orders = ordersSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    orderType
-                }));
+                const orders = ordersSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const finalAmount = data.items.reduce((acc, item) => acc + parseFloat(item.totalCost || 0), 0).toFixed(2);
+
+                    return {
+                        id: doc.id,
+                        ...data,
+                        orderType,
+                        finalAmount
+                    };
+                });
 
                 // Sorting by date
                 orders.sort((a, b) => new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000));
@@ -49,7 +55,6 @@ const ViewList = ({ orderType }) => {
                     <tr>
                         <th>Order Id</th>
                         <th>Date</th>
-                        <th>Invoice Number</th>
                         <th>Vendor</th>
                         <th>Order Type</th>
                         <th>Status</th>
@@ -62,11 +67,10 @@ const ViewList = ({ orderType }) => {
                         <tr key={record.id}>
                             <td>{record.id}</td>
                             <td>{record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString() : ''}</td>
-                            <td>{record.invoiceNumber || 'N/A'}</td>
                             <td>{record.vendor || 'N/A'}</td>
                             <td>{record.orderType}</td>
                             <td>{record.status || 'N/A'}</td>
-                            <td>{record.finalAmount || 'N/A'}</td>
+                            <td>{record.finalAmount}</td>
                             <td>
                                 <button>Edit</button>
                             </td>

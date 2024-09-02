@@ -4,6 +4,7 @@ import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, li
 import { useAuth } from '../contexts/AuthContext';
 import PaymentSection from './PaymentSection';
 import SaleHistory from './SaleHistory';
+import Select from 'react-select';
 import qz from 'qz-tray';
 import '../utility/SalePOS.css';
 
@@ -13,7 +14,6 @@ function SalePOS() {
     const [items, setItems] = useState([]);
     const [filteredItems, setFilteredItems] = useState([]);
     const [cart, setCart] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState(null);
     const [displayValue, setDisplayValue] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
@@ -23,17 +23,27 @@ function SalePOS() {
     const [shopDetails, setShopDetails] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
+    const [loadingDepartments, setLoadingDepartments] = useState(true);
+    const [loadingItems, setLoadingItems] = useState(true);
+    const [loadingShopDetails, setLoadingShopDetails] = useState(true);
     let config;
 
     // Fetch shop details when the component mounts
     useEffect(() => {
         const fetchShopDetails = async () => {
-            if (currentUser?.shopCode) {
-                const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
-                const shopSnapshot = await getDocs(shopQuery);
-                if (!shopSnapshot.empty) {
-                    setShopDetails(shopSnapshot.docs[0].data());
+            setLoadingShopDetails(true);
+            try {
+                if (currentUser?.shopCode) {
+                    const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
+                    const shopSnapshot = await getDocs(shopQuery);
+                    if (!shopSnapshot.empty) {
+                        setShopDetails(shopSnapshot.docs[0].data());
+                    }
                 }
+            } catch (error) {
+                console.error("Failed to fetch shop details:", error);
+            } finally {
+                setLoadingShopDetails(false);
             }
         };
 
@@ -43,8 +53,15 @@ function SalePOS() {
     // Fetch departments when the component mounts
     useEffect(() => {
         const fetchDepartments = async () => {
-            const departmentsSnapshot = await getDocs(collection(db, 'departments'));
-            setDepartments(departmentsSnapshot.docs.map(doc => doc.data()));
+            setLoadingDepartments(true);
+            try {
+                const departmentsSnapshot = await getDocs(collection(db, 'categories'));
+                setDepartments(departmentsSnapshot.docs.map(doc => doc.data()));
+            } catch (error) {
+                console.error("Failed to fetch departments:", error);
+            } finally {
+                setLoadingDepartments(false);
+            }
         };
 
         fetchDepartments();
@@ -53,62 +70,76 @@ function SalePOS() {
     // Fetch items when the component mounts
     useEffect(() => {
         const fetchItems = async () => {
-            const itemsSnapshot = await getDocs(collection(db, 'products'));
-            const itemsList = itemsSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(item => item.shopCode === currentUser.shopCode);
-            setItems(itemsList);
-            setFilteredItems(itemsList);
+            setLoadingItems(true);
+            try {
+                const itemsSnapshot = await getDocs(collection(db, 'products'));
+                const itemsList = itemsSnapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(item => item.shopCode === currentUser.shopCode);
+                setItems(itemsList);
+                setFilteredItems(itemsList);
+            } catch (error) {
+                console.error("Failed to fetch items:", error);
+            } finally {
+                setLoadingItems(false);
+            }
         };
 
         fetchItems();
     }, [currentUser.shopCode]);
 
-    // Ensure QZ Tray connection is established when the component mounts
-    useEffect(() => {
-        const connectToQZTray = async () => {
-            if (isConnected || isConnecting) return; // Prevent multiple connections
+    // Manage QZ Tray connection
+    const connectToQZTray = async () => {
+        if (qz.websocket.isActive()) {
+            console.log("QZ Tray connection already exists");
+            setIsConnected(true); // Update state to reflect the active connection
+            return; // Exit early if already connected
+        }
 
-            try {
-                setIsConnecting(true);
-                await qz.websocket.connect();
+        try {
+            setIsConnecting(true);
+            await qz.websocket.connect();
+            setIsConnected(true);
+            console.log("Connected to QZ Tray");
+        } catch (err) {
+            if (err.message.includes("An open connection with QZ Tray already exists")) {
+                console.log("Using existing QZ Tray connection.");
                 setIsConnected(true);
-                console.log("Connected to QZ Tray");
-            } catch (err) {
+            } else {
                 console.error("Error connecting to QZ Tray:", err);
-            } finally {
-                setIsConnecting(false);
+                setTimeout(connectToQZTray, 5000); // Retry after 5 seconds if connection fails
             }
-        };
+        } finally {
+            setIsConnecting(false);
+        }
+    };
 
+    const disconnectQZTray = async () => {
+        if (qz.websocket.isActive()) {
+            try {
+                await qz.websocket.disconnect();
+                setIsConnected(false);
+                console.log("Disconnected from QZ Tray");
+            } catch (err) {
+                console.error("Error disconnecting from QZ Tray:", err);
+            }
+        }
+    };
+
+    // Connect QZ Tray on component mount
+    useEffect(() => {
         connectToQZTray();
 
         // Clean up the connection when the component unmounts
         return () => {
-            if (isConnected) {
-                qz.websocket.disconnect().then(() => {
-                    setIsConnected(false);
-                    console.log("Disconnected from QZ Tray");
-                }).catch(err => console.error("Error disconnecting from QZ Tray:", err));
-            }
+            disconnectQZTray();
         };
-    }, [isConnected, isConnecting]);
+    }, []);
 
     const handleDepartmentClick = (department) => {
         setSelectedDepartment(department);
         const departmentItems = items.filter(item => item.department === department.name);
         setFilteredItems(departmentItems);
-    };
-
-    const handleSearch = (e) => {
-        const searchQuery = e.target.value.toLowerCase();
-        setSearchTerm(searchQuery);
-        const searchedItems = items.filter(item =>
-            item.name.toLowerCase().includes(searchQuery) ||
-            item.localName.toLowerCase().includes(searchQuery) ||
-            item.barcode.includes(searchQuery)
-        );
-        setFilteredItems(searchedItems);
     };
 
     const handleItemAdd = (item) => {
@@ -170,6 +201,8 @@ function SalePOS() {
     };
 
     const handlePayment = async (paymentDetails) => {
+        await connectToQZTray(); // Ensure QZ Tray connection is active
+
         try {
             const orderNumber = await generateOrderNumber();
 
@@ -198,13 +231,7 @@ function SalePOS() {
 
     const handlePrintReceipt = async (orderNumber, paymentDetails) => {
         if (!isConnected) {
-            try {
-                await qz.websocket.connect(); // Ensure the connection is established
-                setIsConnected(true);
-            } catch (err) {
-                console.error("Failed to connect to QZ Tray:", err);
-                return;
-            }
+            await connectToQZTray(); // Ensure the connection is established
         }
 
         // Initialize a new configuration for each print
@@ -235,13 +262,13 @@ function SalePOS() {
 
                 return `${(index + 1).toString().padEnd(3)} ${item.name.padEnd(20)} ${item.quantity.toString().padEnd(4)} ${price.toFixed(3).padEnd(6)} ${amount}\n`;
             }),
-            '----------------------------------------\n', // Full width separator
+            '--------------------------------------------------\n', // Full width separator
             `Total ExTax:               ${cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
             `VAT 5%:                    ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
             `Net Total:                 ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
             `Paid:                      ${parseFloat(paymentDetails.amountPaid).toFixed(3)} OMR\n`,
             `Balance:                   ${parseFloat(paymentDetails.balance).toFixed(3)} OMR\n`,
-            '----------------------------------------\n', // Full width separator
+            '--------------------------------------------------\n', // Full width separator
             '\x1B\x61\x01', // Center align
             `Transaction Complete!\n`,
             '\x1B\x64\x05', // Feed 5 lines to ensure the print is fully ejected
@@ -253,7 +280,6 @@ function SalePOS() {
             console.log("Printed successfully");
         }).catch(err => console.error("Print failed:", err));
     };
-
 
     const handleVoidCart = () => {
         setShowPopup(true);
@@ -269,19 +295,20 @@ function SalePOS() {
     };
 
     const handleKeypadClick = (value) => {
-        if (selectedItem) {
-            const newCart = cart.map(cartItem => {
-                if (cartItem.id === selectedItem.id) {
-                    if (value === 'QTY') {
-                        cartItem.quantity = parseFloat(displayValue);
-                    } else if (value === 'PRICE') {
-                        cartItem.price = parseFloat(displayValue);
-                    }
-                }
-                return cartItem;
-            });
-            setCart(newCart);
-            setDisplayValue('');
+        if (value === 'Enter') {
+            // Check if displayValue matches any product code or name
+            const matchingItem = items.find(item =>
+                item.code === displayValue ||
+                item.name.toLowerCase().includes(displayValue.toLowerCase())
+            );
+            if (matchingItem) {
+                handleItemAdd(matchingItem);
+            } else {
+                alert('Product not found');
+            }
+            setDisplayValue(''); // Clear display after processing
+        } else {
+            setDisplayValue(prevValue => prevValue + value);
         }
     };
 
@@ -289,88 +316,81 @@ function SalePOS() {
         setDisplayValue('');
     };
 
-    const handleSearchKeyDown = (e) => {
-        if (e.key === 'ArrowDown') {
-            // Navigate down the list
-        } else if (e.key === 'ArrowUp') {
-            // Navigate up the list
-        }
-    };
-
     return (
         <div className="sale-pos">
             <div className="left-panel">
-                <div className="search-container">
-                    <input
-                        type="text"
-                        className="search-bar"
-                        placeholder="Search or Scan the product"
-                        value={searchTerm}
-                        onChange={handleSearch}
-                        onKeyDown={handleSearchKeyDown}
-                    />
-                    {searchTerm && (
-                        <div className="search-dropdown">
-                            {filteredItems.map(item => (
-                                <div
-                                    key={item.id}
-                                    className="search-item"
-                                    onClick={() => handleItemAdd(item)}
+                {loadingItems ? (
+                    <p>Loading items...</p>
+                ) : (
+                    <>
+                        <div className="search-container">
+                            <Select
+                                options={filteredItems.map(item => ({
+                                    value: item.id,
+                                    label: item.name,
+                                }))}
+                                onChange={(selectedOption) => {
+                                    const selectedItem = items.find(item => item.id === selectedOption.value);
+                                    handleItemAdd(selectedItem);
+                                }}
+                                placeholder="Search or Scan the product"
+                                isSearchable
+                            />
+                        </div>
+                        <table className="sales-table">
+                            <thead>
+                                <tr>
+                                    <th>SN</th>
+                                    <th>Item</th>
+                                    <th>UOM</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Disc</th>
+                                    <th>Tax</th>
+                                    <th>Amt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {cart.map((cartItem, index) => (
+                                    <tr
+                                        key={cartItem.id}
+                                        onClick={() => setSelectedItem(cartItem)}
+                                        className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                                    >
+                                        <td>{index + 1}</td>
+                                        <td>{cartItem.name}</td>
+                                        <td>{cartItem.unitType}</td>
+                                        <td>{cartItem.quantity}</td>
+                                        <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
+                                        <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
+                                        <td>{cartItem.taxType}</td>
+                                        <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="sales-summary">
+                            <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
+                        </div>
+                    </>
+                )}
+            </div>
+            <div style={{ display: 'flex' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", width: '200px' }}>
+                    {loadingDepartments ? (
+                        <p>Loading departments...</p>
+                    ) : (
+                        <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
+                            {departments.map(department => (
+                                <button
+                                    key={department.name}
+                                    onClick={() => handleDepartmentClick(department)}
                                 >
-                                    {item.name}
-                                </div>
+                                    {department.name}
+                                </button>
                             ))}
                         </div>
                     )}
-                </div>
-                <table className="sales-table">
-                    <thead>
-                        <tr>
-                            <th>SN</th>
-                            <th>Item</th>
-                            <th>UOM</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Disc</th>
-                            <th>Tax</th>
-                            <th>Amt</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {cart.map((cartItem, index) => (
-                            <tr
-                                key={cartItem.id}
-                                onClick={() => setSelectedItem(cartItem)}
-                                className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
-                            >
-                                <td>{index + 1}</td>
-                                <td>{cartItem.name}</td>
-                                <td>{cartItem.unitType}</td>
-                                <td>{cartItem.quantity}</td>
-                                <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
-                                <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
-                                <td>{cartItem.taxType}</td>
-                                <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                <div className="sales-summary">
-                    <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
-                </div>
-            </div>
-            <div style={{ display: 'flex' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", height: "95vh", width: '100px' }}>
-                    <div className="departments">
-                        {departments.map(department => (
-                            <button
-                                key={department.name}
-                                onClick={() => handleDepartmentClick(department)}
-                            >
-                                {department.name}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 <div className="items">
@@ -400,11 +420,21 @@ function SalePOS() {
                 </div>
                 <button className="remove" onClick={handleRemoveItem}>Remove</button>
                 <button className="payment-btn" onClick={() => setShowPayment(true)}>Payment</button>
+                <div className="display-container">
+                    <input
+                        type="text"
+                        className="keypad-display"
+                        value={displayValue}
+                        readOnly
+                        placeholder="Enter or scan product code"
+                        style={{width: '95%', padding: '20px'}}
+                    />
+                </div>
                 <div className="keypad">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
                         <button
                             key={key}
-                            onClick={() => setDisplayValue(displayValue + key)}
+                            onClick={() => handleKeypadClick(key)}
                         >
                             {key}
                         </button>

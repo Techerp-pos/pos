@@ -4,6 +4,7 @@ import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, li
 import { useAuth } from '../contexts/AuthContext';
 import SaleHistory from './SaleHistory';
 import qz from 'qz-tray';
+import Select from 'react-select';
 import '../utility/SalePOS.css';
 
 function SaleOrderPOS() {
@@ -205,7 +206,7 @@ function SaleOrderPOS() {
             '\x1D\x21\x00', // Normal text
             `${shopDetails?.address || 'SHOP ADDRESS'}\n`,
             `${shopDetails?.phone ? `MOB: ${shopDetails.phone}` : ''}\n`,
-            '----------------------------------------\n', // Full width separator for 80mm
+            '------------------------------------------------\n', // Full width separator for 80mm
             '\x1B\x61\x00', // Left align
             `Invoice No: ${orderNumber}\n`,
             `Terminal: ${'Terminal 1'}\n`, // Assuming fixed terminal for now
@@ -213,27 +214,27 @@ function SaleOrderPOS() {
             `Time: ${new Date().toLocaleTimeString()}\n`,
             `Served By: ${currentUser.displayName || 'admin'}\n`,
             `Customer: Walk In\n`, // Assuming Walk In customer for now
-            '----------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             'Sl  Item                    Qty  Price  Amount\n', // Header for items
-            '----------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             ...cart.map((item, index) => {
                 const price = parseFloat(item?.price || 0);  // Ensure price is a number
                 const amount = (price * parseFloat(item.quantity || 0)).toFixed(3); // Calculate amount
-                
+
                 return `${(index + 1).toString().padEnd(3)} ${item.name.padEnd(20)} ${item.quantity.toString().padEnd(4)} ${price.toFixed(3).padEnd(6)} ${amount}\n`;
             }),
-            '----------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             `Total ExTax:               ${cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
             `VAT 5%:                    ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
             `Net Total:                 ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
-            '----------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             '\x1B\x61\x01', // Center align
-            `Thank you for your purchase!\n`,
+            `Order Placed!\n`,
             '\x1B\x64\x05', // Feed 5 lines to ensure the print is fully ejected
             '\x1D\x56\x42', // Partial cut
             '\x1B\x64\x10', // Feed extra paper for the next print
         ];
-        
+
 
         const itemsData = cart.map((item, index) => {
             const price = parseFloat(item.price || 0); // Ensure price is a number
@@ -280,26 +281,18 @@ function SaleOrderPOS() {
         <div className="sale-pos">
             <div className="left-panel">
                 <div className="search-container">
-                    <input
-                        type="text"
-                        className="search-bar"
+                    <Select
+                        options={filteredItems.map(item => ({
+                            value: item.id,
+                            label: item.name
+                        }))}
+                        onChange={(selectedOption) => {
+                            const selectedItem = items.find(item => item.id === selectedOption.value);
+                            if (selectedItem) handleItemAdd(selectedItem);
+                        }}
                         placeholder="Search or Scan the product"
-                        value={searchTerm}
-                        onChange={handleSearch}
+                        isClearable
                     />
-                    {searchTerm && (
-                        <div className="search-dropdown">
-                            {filteredItems.map(item => (
-                                <div
-                                    key={item.id}
-                                    className="search-item"
-                                    onClick={() => handleItemAdd(item)}
-                                >
-                                    {item.name}
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
                 <table className="sales-table">
                     <thead>
@@ -338,8 +331,8 @@ function SaleOrderPOS() {
                 </div>
             </div>
             <div style={{ display: 'flex' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", height: "95vh", width: '100px' }}>
-                    <div className="departments">
+                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", height: "95vh", width: '300px' }}>
+                    <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '300px' }}>
                         {departments.map(department => (
                             <button
                                 key={department.name}
