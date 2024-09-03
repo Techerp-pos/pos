@@ -11,6 +11,7 @@ function Settings() {
     address: '',
     phone: '',
     logoUrl: '',
+    shopCode: '',  // Added shopCode field
   });
   const [logo, setLogo] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -112,6 +113,16 @@ function Settings() {
             type="text"
             name="phone"
             value={shopDetails.phone}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>Shop Code</label>
+          <input
+            type="text"
+            name="shopCode"
+            value={shopDetails.shopCode}
             onChange={handleChange}
             required
           />

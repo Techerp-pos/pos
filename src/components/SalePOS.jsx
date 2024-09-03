@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentSection from './PaymentSection';
 import SaleHistory from './SaleHistory';
@@ -55,38 +55,54 @@ function SalePOS() {
         const fetchDepartments = async () => {
             setLoadingDepartments(true);
             try {
-                const departmentsSnapshot = await getDocs(collection(db, 'categories'));
-                setDepartments(departmentsSnapshot.docs.map(doc => doc.data()));
+                if (currentUser?.shopCode) {
+                    const departmentsQuery = query(collection(db, 'categories'), where('shopCode', '==', currentUser.shopCode));
+                    const departmentsSnapshot = await getDocs(departmentsQuery);
+                    if (!departmentsSnapshot.empty) {
+                        setDepartments(departmentsSnapshot.docs.map(doc => doc.data()));
+                    } else {
+                        setDepartments([]); // No data found
+                    }
+                }
             } catch (error) {
                 console.error("Failed to fetch departments:", error);
+                setDepartments([]); // Handle error by setting an empty array
             } finally {
                 setLoadingDepartments(false);
             }
         };
 
         fetchDepartments();
-    }, []);
+    }, [currentUser?.shopCode]);
 
     // Fetch items when the component mounts
     useEffect(() => {
         const fetchItems = async () => {
             setLoadingItems(true);
             try {
-                const itemsSnapshot = await getDocs(collection(db, 'products'));
-                const itemsList = itemsSnapshot.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() }))
-                    .filter(item => item.shopCode === currentUser.shopCode);
-                setItems(itemsList);
-                setFilteredItems(itemsList);
+                if (currentUser?.shopCode) {
+                    const itemsQuery = query(collection(db, 'products'), where('shopCode', '==', currentUser.shopCode));
+                    const itemsSnapshot = await getDocs(itemsQuery);
+                    if (!itemsSnapshot.empty) {
+                        const itemsList = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setItems(itemsList);
+                        setFilteredItems(itemsList);
+                    } else {
+                        setItems([]); // No data found
+                        setFilteredItems([]); // No data found
+                    }
+                }
             } catch (error) {
                 console.error("Failed to fetch items:", error);
+                setItems([]); // Handle error by setting an empty array
+                setFilteredItems([]); // Handle error by setting an empty array
             } finally {
                 setLoadingItems(false);
             }
         };
 
         fetchItems();
-    }, [currentUser.shopCode]);
+    }, [currentUser?.shopCode]);
 
     // Manage QZ Tray connection
     const connectToQZTray = async () => {
@@ -139,7 +155,11 @@ function SalePOS() {
     const handleDepartmentClick = (department) => {
         setSelectedDepartment(department);
         const departmentItems = items.filter(item => item.department === department.name);
-        setFilteredItems(departmentItems);
+        if (departmentItems.length > 0) {
+            setFilteredItems(departmentItems);
+        } else {
+            setFilteredItems([]); // No items in this department
+        }
     };
 
     const handleItemAdd = (item) => {
@@ -379,6 +399,8 @@ function SalePOS() {
                 <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", width: '200px' }}>
                     {loadingDepartments ? (
                         <p>Loading departments...</p>
+                    ) : departments.length === 0 ? (
+                        <p>No departments available</p>
                     ) : (
                         <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
                             {departments.map(department => (
@@ -394,7 +416,9 @@ function SalePOS() {
                 </div>
 
                 <div className="items">
-                    {filteredItems.map(item => (
+                    {filteredItems.length === 0 && selectedDepartment ? (
+                        <p>No items available in this department</p>
+                    ) : filteredItems.map(item => (
                         <div
                             key={item.id}
                             className="product-card-sale"
@@ -427,7 +451,7 @@ function SalePOS() {
                         value={displayValue}
                         readOnly
                         placeholder="Enter or scan product code"
-                        style={{width: '95%', padding: '20px'}}
+                        style={{ width: '95%', padding: '20px' }}
                     />
                 </div>
                 <div className="keypad">

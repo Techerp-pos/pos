@@ -22,7 +22,7 @@ function DailySales() {
       const ordersSnapshot = await getDocs(collection(db, 'orders'));
       const orders = ordersSnapshot.docs
         .map(doc => doc.data())
-        .filter(order => order.shopCode === currentUser.shopCode && order.status === 'Completed');
+        .filter(order => order.shopCode === currentUser.shopCode && order.status.toLowerCase() === 'completed');
 
       const today = new Date().toISOString().split('T')[0];
 
@@ -32,12 +32,13 @@ function DailySales() {
       const filteredOrders = orders.filter(order => order.orderDate === today);
 
       filteredOrders.forEach((data) => {
-        if (data.paymentMethod === 'cash') {
-          cashTotal += parseFloat(data.total);
-        } else if (data.paymentMethod === 'card') {
-          cardTotal += parseFloat(data.total);
+        const totalAmount = parseFloat(data.total) || 0;
+        if (data.paymentMethod.toLowerCase() === 'cash') {
+          cashTotal += totalAmount;
+        } else if (data.paymentMethod.toLowerCase() === 'card') {
+          cardTotal += totalAmount;
         }
-        overallTotal += parseFloat(data.total);
+        overallTotal += totalAmount;
       });
 
       setCashSales(cashTotal);
@@ -56,7 +57,7 @@ function DailySales() {
       .map(doc => doc.data())
       .filter(order =>
         order.shopCode === currentUser.shopCode &&
-        order.status === 'Completed' &&
+        order.status.toLowerCase() === 'completed' &&
         new Date(order.orderDate) >= new Date(startDate) &&
         new Date(order.orderDate) <= new Date(endDate)
       );
@@ -72,10 +73,10 @@ function DailySales() {
       body: monthlyData.map(order => [
         order.orderNumber,
         order.orderDate,
-        order.total,
+        parseFloat(order.total).toFixed(3),
         order.status,
         order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
-        order.discount || '0'
+        parseFloat(order.discount || '0').toFixed(3)
       ])
     });
     doc.save('report.pdf');
@@ -86,10 +87,10 @@ function DailySales() {
       monthlyData.map(order => ({
         'Order ID': order.orderNumber,
         Date: order.orderDate,
-        Total: order.total,
+        Total: parseFloat(order.total).toFixed(3),
         Status: order.status,
         Items: order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', '),
-        Discount: order.discount || '0'
+        Discount: parseFloat(order.discount || '0').toFixed(3)
       }))
     );
     const workbook = XLSX.utils.book_new();

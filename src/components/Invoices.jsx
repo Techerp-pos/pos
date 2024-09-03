@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,12 +12,15 @@ function Invoices() {
 
     useEffect(() => {
         const fetchOrders = async () => {
+            if (!currentUser?.shopCode) return;
+
             const orderCollection = collection(db, 'orders');
             const orderSnapshot = await getDocs(orderCollection);
             const allOrders = orderSnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(order => order.addedBy === currentUser.uid)
+                .filter(order => order.shopCode === currentUser.shopCode) // Filter by shopCode
                 .sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+
             setOrders(allOrders);
         };
 
@@ -49,7 +52,6 @@ function Invoices() {
             <style>
                 .bill-container {
                     font-family: 'Arial', sans-serif;
-                    // width: 80mm;
                     padding: 10px;
                     border: 1px solid #ccc;
                     margin: auto;
@@ -83,11 +85,10 @@ function Invoices() {
             <div class="bill-container">
                 <div class="bill-header">
                     ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 50px; height: 50px;"/>` : ''}
-                    <h3>TechERP</h3>
-                    <p>${shopDetails.address}</p>
-                    <p>${shopDetails.phone}</p>
-                    <h2>${shopDetails.name}</h2>
-                    <p>Invoice</p>
+                    <h3>${shopDetails.name || 'TechERP'}</h3>
+                    <p>${shopDetails.address || 'Address'}</p>
+                    <p>${shopDetails.phone || 'Phone'}</p>
+                    <h2>Invoice</h2>
                     <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
                 </div>
                 <table class="bill-items">
@@ -104,18 +105,18 @@ function Invoices() {
                     <tbody>
                         ${ordersToPrint.map(order => `
                             <tr>
-                                <td>${order.orderId}</td>
+                                <td>${order.orderNumber}</td>
                                 <td>${new Date(order.timestamp.toDate()).toLocaleDateString()} ${new Date(order.timestamp.toDate()).toLocaleTimeString()}</td>
                                 <td>${parseFloat(order.total).toFixed(3)}</td>
                                 <td>${order.status}</td>
                                 <td>
                                     <ul>
-                                        ${order.cart.map(item => `
+                                        ${order.items.map(item => `
                                             <li>${item.name} - Qty: ${item.quantity}</li>
                                         `).join('')}
                                     </ul>
                                 </td>
-                                <td>${parseFloat(order.discount).toFixed(3)}</td>
+                                <td>${parseFloat(order.discount || 0).toFixed(3)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -143,7 +144,7 @@ function Invoices() {
             <ul className="orders-list">
                 {orders.slice(0, 10).map((order) => (
                     <li key={order.id} className="order-item">
-                        {new Date(order.timestamp.toDate()).toLocaleDateString()} - {parseFloat(order.total).toFixed(3)} OMR - {order.status} - {order.cart.map(item => `${item.name} (${item.quantity})`).join(', ')} - Discount: {parseFloat(order.discount).toFixed(3)}
+                        {new Date(order.timestamp.toDate()).toLocaleDateString()} - {parseFloat(order.total).toFixed(3)} OMR - {order.status} - {order.items.map(item => `${item.name} (${item.quantity})`).join(', ')} - Discount: {parseFloat(order.discount || 0).toFixed(3)}
                     </li>
                 ))}
             </ul>
