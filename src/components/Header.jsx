@@ -83,6 +83,12 @@ function Header() {
               <span className="link-text">Inventory</span>
             </NavLink>
           </li>
+          <li className={activeLink === '/accounts' ? 'active-link' : ''}>
+            <NavLink to="/accounts" onClick={() => handleSetActiveLink('/accounts')}>
+              <img width="24" height="24" src="https://img.icons8.com/material-outlined/24/cashbook.png" alt="warehouse" style={{ filter: 'invert(1)' }} title='Inventory' />
+              <span className="link-text">Accounts</span>
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </div>

@@ -33,6 +33,10 @@ import SalePOS from './components/SalePOS';
 import SaleOrderPOS from './components/SaleOrderPOS';
 import DayClosePOS from './components/DayClosePOS';
 import GoodsReturnVoucher from './components/GoodsReturnVoucher';
+import JournalEntry from './components/JournalEntry';
+import JournalEntryList from './components/JournalEntryList';
+import AccountsList from './components/AccountsList';
+import ChartOfAccounts from './components/ChartofAccounts';
 function App() {
   return (
     <div className="app">
@@ -82,6 +86,9 @@ function PrivateRoutes() {
           <Route path='/view-list' element={<ViewList />} />
           <Route path="/grv-list" element={<ViewList orderType="GRV" />} />
           <Route path='/grv' element={<GoodsReturnVoucher />} />
+          <Route path='/journal' element={<JournalEntryList />} />
+          <Route path='/accounts' element={<AccountsList />} />
+          <Route path='/charts' element={<ChartOfAccounts />} />
         </Routes>
       </div>
     </>

@@ -1,0 +1,148 @@
+.chart-of-accounts-container {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+h2 {
+    margin-bottom: 20px;
+    font-weight: normal;
+}
+
+.actions-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.add-main-ledger-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.add-main-ledger-btn:hover {
+    background-color: #0056b3;
+}
+
+.chart-of-accounts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.chart-of-accounts-table th {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 2px solid #ddd;
+    color: white;
+}
+
+.chart-of-accounts-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.ledger-row {
+    background-color: #f9f9f9;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.ledger-row:hover {
+    background-color: #eef1f5;
+}
+
+.sub-ledger-row {
+    background-color: #eef1f5;
+    padding-left: 20px;
+    /* Indent sub-ledgers */
+}
+
+.sub-sub-ledger-row {
+    background-color: #e0e7f1;
+    padding-left: 40px;
+    /* Indent sub-sub-ledgers further */
+}
+
+.ledger-name {
+    font-weight: bold;
+}
+
+.sub-ledger-name,
+.sub-sub-ledger-name {
+    font-weight: normal;
+}
+
+.actions {
+    text-align: right;
+}
+
+.action-button {
+    background-color: transparent;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.action-button:hover {
+    text-decoration: underline;
+}
+
+.ledger-form-container {
+    margin-top: 20px;
+}
+
+.ledger-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.ledger-form label {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.ledger-form input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    width: 100%;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.submit-btn,
+.cancel-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 14px;
+}
+
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+.cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.submit-btn:hover {
+    background-color: #0056b3;
+}
+
+.cancel-btn:hover {
+    background-color: #5a6268;
+}
