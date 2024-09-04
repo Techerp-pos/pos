@@ -36,7 +36,6 @@
     display: flex;
     justify-content: space-around;
     padding: 10px;
-    background-color: #f2f2f2;
 }
 
 .product-form {
@@ -71,6 +70,7 @@
 .form-group.dual-input {
     display: flex;
     gap: 15px;
+    justify-content: space-between;
 }
 
 /* .form-group.dual-input input,

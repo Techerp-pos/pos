@@ -1020,7 +1020,7 @@ tbody tr:hover {
     gap: 15px;
 }
 
-.form-group {
+/* .form-group {
     display: flex;
     flex-direction: column;
 }
@@ -1039,7 +1039,7 @@ tbody tr:hover {
     border: 1px solid #dcdcdc;
     border-radius: 6px;
     font-size: 16px;
-}
+} */
 
 .checkbox-group {
     display: flex;
@@ -1118,7 +1118,7 @@ tbody tr:hover {
     margin-bottom: 30px;
 }
 
-.form-group {
+/* .form-group {
     display: flex;
     flex-direction: column;
 }
@@ -1138,7 +1138,7 @@ tbody tr:hover {
     border: 1px solid #dcdcdc;
     border-radius: 6px;
     font-size: 16px;
-}
+} */
 
 .add-terminal-button {
     background-color: #28a745;

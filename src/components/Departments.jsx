@@ -21,7 +21,7 @@ function Departments() {
   const handleAddDepartment = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'departments'), { ...newDepartment, addedBy: currentUser ? currentUser.uid : 'Unknown' });
+      await addDoc(collection(db, 'departments'), { ...newDepartment, addedBy: currentUser ? currentUser.uid : 'Unknown',  shopCode: currentUser.shopCode });
       setNewDepartment({ code: '', name: '', isDeliItem: false, promotion: '' });
       fetchDepartments(); // Refresh the list
     } catch (error) {

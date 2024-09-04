@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentSection from './PaymentSection';
 import SaleHistory from './SaleHistory';
@@ -248,6 +248,27 @@ function SalePOS() {
             alert("Failed to complete the sale. Please try again.");
         }
     };
+    const detectPrinters = async () => {
+        try {
+            const printers = await qz.printers.getList(); // Detect all printers
+            console.log("Available Printers:", printers);
+            return printers;
+        } catch (err) {
+            console.error("Error detecting printers:", err);
+            return [];
+        }
+    };
+
+    // Fetch printers and set in the state for user to select
+    useEffect(() => {
+        const fetchPrinters = async () => {
+            const printers = await detectPrinters();
+            setAvailablePrinters(printers); // Set printers to state
+            setSelectedPrinter(printers[0]); // Auto-select first printer
+        };
+        fetchPrinters();
+    }, []);
+
 
     const handlePrintReceipt = async (orderNumber, paymentDetails) => {
         if (!isConnected) {

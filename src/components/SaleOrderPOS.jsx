@@ -1,443 +1,397 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { CartContext } from '../contexts/CartContext';
+import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import SaleHistory from './SaleHistory';
+import qz from 'qz-tray';
+import Select from 'react-select';
+import '../utility/SalePOS.css';
 
-function SaleOrder() {
-    const [categories, setCategories] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [discount, setDiscount] = useState(0);
-    const [shopDetails, setShopDetails] = useState({});
-    const [orders, setOrders] = useState([]);
-    const [selectedOrderId, setSelectedOrderId] = useState(null);
-    const [showOrders, setShowOrders] = useState(false);
-    const [localCart, setLocalCart] = useState([]);
-    const [status, setStatus] = useState('Pending');
+function SaleOrderPOS() {
     const { currentUser } = useAuth();
-    const { cart, dispatch } = useContext(CartContext);
+    const [departments, setDepartments] = useState([]);
+    const [items, setItems] = useState([]);
+    const [filteredItems, setFilteredItems] = useState([]);
+    const [cart, setCart] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDepartment, setSelectedDepartment] = useState(null);
+    const [displayValue, setDisplayValue] = useState('');
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [showHistory, setShowHistory] = useState(false);
+    const [showPendingOrders, setShowPendingOrders] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [shopDetails, setShopDetails] = useState('');
 
+    // Fetch shop details when the component mounts
     useEffect(() => {
-        const fetchCategories = async () => {
-            const categoryCollection = collection(db, 'categories');
-            const categorySnapshot = await getDocs(categoryCollection);
-            setCategories(categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        };
-
         const fetchShopDetails = async () => {
-            if (currentUser) {
-                const shopDoc = await getDoc(doc(db, 'shopDetails', currentUser.uid));
-                if (shopDoc.exists()) {
-                    setShopDetails(shopDoc.data());
+            if (currentUser?.shopCode) {
+                const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
+                const shopSnapshot = await getDocs(shopQuery);
+                if (!shopSnapshot.empty) {
+                    setShopDetails(shopSnapshot.docs[0].data());
                 }
             }
         };
 
-        fetchCategories();
         fetchShopDetails();
-        fetchProducts();
-        loadCartFromLocalStorage();
-        fetchOrders();
-    }, [currentUser]);
+    }, [currentUser.shopCode]);
+
+    // Connect to QZ Tray when the component mounts
+    useEffect(() => {
+        const connectToQZTray = async () => {
+            if (isConnected || isConnecting) return; // Prevent multiple connections
+
+            try {
+                setIsConnecting(true);
+                await qz.websocket.connect();
+                setIsConnected(true);
+                console.log("Connected to QZ Tray");
+            } catch (err) {
+                console.error("Error connecting to QZ Tray:", err);
+            } finally {
+                setIsConnecting(false);
+            }
+        };
+
+        connectToQZTray();
+
+        // Clean up the connection when the component unmounts
+        return () => {
+            if (isConnected) {
+                qz.websocket.disconnect().then(() => {
+                    setIsConnected(false);
+                    console.log("Disconnected from QZ Tray");
+                }).catch(err => console.error("Error disconnecting from QZ Tray:", err));
+            }
+        };
+    }, [isConnected, isConnecting]);
 
     useEffect(() => {
-        if (!selectedOrderId) {
-            setLocalCart(cart);
+        const fetchDepartments = async () => {
+            const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+            setDepartments(departmentsSnapshot.docs.map(doc => doc.data()));
+        };
+
+        fetchDepartments();
+    }, []);
+
+    useEffect(() => {
+        const fetchItems = async () => {
+            const itemsSnapshot = await getDocs(collection(db, 'products'));
+            const itemsList = itemsSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(item => item.shopCode === currentUser.shopCode);
+            setItems(itemsList);
+            setFilteredItems(itemsList);
+        };
+
+        fetchItems();
+    }, [currentUser.shopCode]);
+
+    const handleDepartmentClick = (department) => {
+        setSelectedDepartment(department);
+        const departmentItems = items.filter(item => item.department === department.name);
+        setFilteredItems(departmentItems);
+    };
+
+    const handleSearch = (e) => {
+        const searchQuery = e.target.value.toLowerCase();
+        setSearchTerm(searchQuery);
+        const searchedItems = items.filter(item =>
+            item.name.toLowerCase().includes(searchQuery) ||
+            item.localName.toLowerCase().includes(searchQuery) ||
+            item.barcode.includes(searchQuery)
+        );
+        setFilteredItems(searchedItems);
+    };
+
+    const handleItemAdd = (item) => {
+        if (item.pricing && item.pricing.length > 0) {
+            const pcsItem = item.pricing.find(p => p.unitType === 'PCS');
+            if (pcsItem) {
+                item = {
+                    ...item,
+                    ...pcsItem,
+                };
+            } else {
+                return;
+            }
         }
-    }, [cart, selectedOrderId]);
 
-    const fetchProducts = async (categoryName = null) => {
-        const productsRef = collection(db, 'products');
-        const productSnapshot = await getDocs(productsRef);
-        const allProducts = productSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                quantity: 0,
-                ...data,
-                price: parseFloat(data.price),
-                stock: parseInt(data.stock, 10)
-            };
-        });
-        const filteredProducts = categoryName
-            ? allProducts.filter(product => product.category === categoryName && product.addedBy === currentUser.uid)
-            : allProducts.filter(product => product.addedBy === currentUser.uid);
-        setProducts(filteredProducts);
-    };
-
-    const fetchOrders = async () => {
-        if (currentUser) {
-            const ordersCollection = collection(db, 'orders');
-            const orderSnapshot = await getDocs(ordersCollection);
-            let fetchedOrders = orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            fetchedOrders = fetchedOrders.filter(order => order.addedBy === currentUser.uid && order.status !== 'Completed');
-
-            // Sort orders manually by timestamp
-            fetchedOrders.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
-            setOrders(fetchedOrders);
-        }
-    };
-
-    const loadCartFromLocalStorage = () => {
-        const savedCart = JSON.parse(localStorage.getItem('cart')) || [];
-        dispatch({ type: 'SET_CART', payload: savedCart });
-    };
-
-    const handleCategoryClick = (category) => {
-        setSelectedCategory(category);
-        fetchProducts(category ? category.name : null);
-    };
-
-    const handleQuantityChange = (product, quantity) => {
-        if (quantity < 0) return;
-
-        const updatedCart = localCart.map(item =>
-            item.id === product.id ? { ...item, quantity } : item
-        ).filter(item => item.quantity > 0);
-
-        if (!updatedCart.find(item => item.id === product.id) && quantity > 0) {
-            updatedCart.push({ ...product, quantity });
+        const existingItem = cart.find(cartItem => cartItem.id === item.id);
+        if (existingItem) {
+            setCart(cart.map(cartItem =>
+                cartItem.id === item.id
+                    ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                    : cartItem
+            ));
         } else {
-            updatedCart.forEach(item => {
-                if (item.id === product.id) {
-                    item.quantity = quantity;
-                }
-            });
+            setCart([...cart, { ...item, quantity: 1 }]);
         }
-
-        setLocalCart(updatedCart);
-        localStorage.setItem('cart', JSON.stringify(updatedCart));
     };
 
-    const handleRemoveFromCart = (productId) => {
-        const updatedCart = localCart.filter(item => item.id !== productId);
-        setLocalCart(updatedCart);
-        localStorage.setItem('cart', JSON.stringify(updatedCart));
+    const handleRemoveItem = () => {
+        if (selectedItem) {
+            setCart(cart.filter(cartItem => cartItem.id !== selectedItem.id));
+            setSelectedItem(null);
+        }
     };
 
-    const calculateSubtotal = () => {
-        return localCart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    };
-
-    const calculateTotal = () => {
-        const subtotal = calculateSubtotal();
-        return subtotal - discount;
-    };
-
-    const generateOrderId = async () => {
+    const generateOrderNumber = async () => {
         const today = new Date();
-        const formattedDate = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
-        const orderCounterDocRef = doc(db, 'orderCounters', formattedDate);
+        const dateString = today.toISOString().split('T')[0].replace(/-/g, '');
 
-        const orderCounterDoc = await getDoc(orderCounterDocRef);
+        const ordersRef = collection(db, 'orders');
+        const todayQuery = query(
+            ordersRef,
+            where('shopCode', '==', currentUser.shopCode),
+            where('orderNumber', '>=', `${dateString}0000`),
+            where('orderNumber', '<=', `${dateString}9999`),
+            orderBy('orderNumber', 'desc'),
+            limit(1)
+        );
 
-        let increment = 1;
-        if (orderCounterDoc.exists()) {
-            increment = orderCounterDoc.data().currentIncrement + 1;
+        const snapshot = await getDocs(todayQuery);
+
+        if (!snapshot.empty) {
+            const lastOrderNumber = snapshot.docs[0].data().orderNumber;
+            const lastIncrement = parseInt(lastOrderNumber.slice(-4), 10);
+            const newIncrement = (lastIncrement + 1).toString().padStart(4, '0');
+            return `${dateString}${newIncrement}`;
+        } else {
+            return `${dateString}0001`;
         }
-
-        await setDoc(orderCounterDocRef, { currentIncrement: increment });
-
-        return `${formattedDate}${String(increment).padStart(4, '0')}`; // Format: YYYYMMDD0001
     };
 
     const handlePlaceOrder = async () => {
-        if (localCart.length === 0) {
-            alert('Please add items to the cart before placing an order.');
+        try {
+            const orderNumber = await generateOrderNumber();
+
+            await addDoc(collection(db, 'orders'), {
+                shopCode: currentUser.shopCode,
+                items: cart,
+                total: cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3),
+                paymentMethod: "Pending",
+                amountPaid: "0.000",
+                balance: cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3),
+                timestamp: serverTimestamp(),
+                cashier: currentUser.uid,
+                orderNumber: orderNumber,
+                status: "order"
+            });
+
+            alert('Order placed successfully!');
+
+            handlePrintReceipt(orderNumber);
+            setCart([]);
+        } catch (error) {
+            console.error("Error placing order: ", error);
+            alert("Failed to place the order. Please try again.");
+        }
+    };
+
+    const handlePrintReceipt = (orderNumber) => {
+        if (!isConnected) {
+            console.error("Cannot print, not connected to QZ Tray");
             return;
         }
 
-        const orderId = selectedOrderId || await generateOrderId();
+        const config = qz.configs.create("RONGTA 80mm Series Printer"); // Replace with your printer name
 
-        try {
-            await setDoc(doc(db, 'orders', orderId), {
-                orderId,
-                orderDate: new Date().toISOString().split('T')[0],
-                cart: localCart,
-                subtotal: calculateSubtotal().toFixed(3),
-                discount,
-                total: calculateTotal().toFixed(3),
-                timestamp: new Date(),
-                addedBy: currentUser.uid,
-                status: status
+        const data = [
+            '\x1B\x40', // Initialize printer
+            '\x1B\x61\x01', // Center align
+            '\x1D\x21\x11', // Double height & width for the shop name
+            `${shopDetails?.name || 'SHOP NAME'}\n`, // Shop name
+            '\x1D\x21\x00', // Normal text
+            `${shopDetails?.address || 'SHOP ADDRESS'}\n`,
+            `${shopDetails?.phone ? `MOB: ${shopDetails.phone}` : ''}\n`,
+            '------------------------------------------------\n', // Full width separator for 80mm
+            '\x1B\x61\x00', // Left align
+            `Invoice No: ${orderNumber}\n`,
+            `Terminal: ${'Terminal 1'}\n`, // Assuming fixed terminal for now
+            `Date: ${new Date().toLocaleDateString()}\n`,
+            `Time: ${new Date().toLocaleTimeString()}\n`,
+            `Served By: ${currentUser.displayName || 'admin'}\n`,
+            `Customer: Walk In\n`, // Assuming Walk In customer for now
+            '------------------------------------------------\n', // Full width separator
+            'Sl  Item                    Qty  Price  Amount\n', // Header for items
+            '------------------------------------------------\n', // Full width separator
+            ...cart.map((item, index) => {
+                const price = parseFloat(item?.price || 0);  // Ensure price is a number
+                const amount = (price * parseFloat(item.quantity || 0)).toFixed(3); // Calculate amount
+
+                return `${(index + 1).toString().padEnd(3)} ${item.name.padEnd(20)} ${item.quantity.toString().padEnd(4)} ${price.toFixed(3).padEnd(6)} ${amount}\n`;
+            }),
+            '------------------------------------------------\n', // Full width separator
+            `Total ExTax:               ${cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
+            `VAT 5%:                    ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
+            `Net Total:                 ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
+            '------------------------------------------------\n', // Full width separator
+            '\x1B\x61\x01', // Center align
+            `Order Placed!\n`,
+            '\x1B\x64\x05', // Feed 5 lines to ensure the print is fully ejected
+            '\x1D\x56\x42', // Partial cut
+            '\x1B\x64\x10', // Feed extra paper for the next print
+        ];
+
+        qz.print(config, data).then(() => {
+            console.log("Printed successfully");
+        }).catch(err => console.error("Print failed:", err));
+    };
+
+    const handleKeypadClick = (value) => {
+        if (selectedItem) {
+            const newCart = cart.map(cartItem => {
+                if (cartItem.id === selectedItem.id) {
+                    if (value === 'QTY') {
+                        cartItem.quantity = parseFloat(displayValue);
+                    } else if (value === 'PRICE') {
+                        cartItem.price = parseFloat(displayValue);
+                    }
+                }
+                return cartItem;
             });
-            alert('Order placed successfully');
-            dispatch({ type: 'CLEAR_CART' });
-            localStorage.removeItem('cart');
-            setSelectedOrderId(null); // Reset selected order ID after placing the order
-            setLocalCart([]);
-
-            // Fetch the newly placed order and print it
-            const orderDoc = await getDoc(doc(db, 'orders', orderId));
-            handlePrint(orderDoc.data());
-        } catch (error) {
-            console.error('Error placing order: ', error);
-            alert('Failed to place order');
+            setCart(newCart);
+            setDisplayValue('');
         }
     };
 
-    const handleDeleteOrder = async (orderId) => {
-        try {
-            await deleteDoc(doc(db, 'orders', orderId));
-            alert('Order deleted successfully');
-            fetchOrders(); // Refresh orders after deletion
-        } catch (error) {
-            console.error('Error deleting order: ', error);
-            alert('Failed to delete order');
-        }
-    };
-
-    const handlePrint = (order) => {
-        const printContent = `
-      <style>
-        body {
-          display: flex;
-          align-items: center;
-          width: 100vw;
-          height: 90%;
-          flex-direction: column;
-        }
-        .bill-container {
-          font-family: 'Arial', sans-serif;
-          width: 95vw;
-          border: 1px solid #ccc;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 30px;
-        }
-        .bill-header {
-          text-align: center;
-          margin-bottom: 10px;
-          display: flex;
-          align-items: center;
-          flex-direction: column;
-        }
-        .bill-header h2 {
-          margin: 0;
-          font-size: 36px; /* Adjusted font size for receipt paper */
-        }
-        .bill-header p {
-          margin: 0;
-          font-size: 28px; /* Adjusted font size for receipt paper */
-        }
-        .bill-items,
-        .transactions {
-          width: 100%;
-          border-collapse: collapse;
-          height: 20%;
-        }
-        .bill-items th,
-        .bill-items td,
-        .transactions th,
-        .transactions td {
-          border: 1px solid #ccc;
-          padding: 5px; /* Adjusted padding for better spacing */
-          text-align: left;
-          font-size: 30px; /* Adjusted font size for receipt paper */
-        }
-        .bill-summary {
-          height: 20%;
-          width: 100%;
-          text-align: right;
-          font-size: 30px; /* Adjusted font size for receipt paper */
-        }
-        .bill-footer {
-          text-align: center;
-          font-size: 30px; /* Adjusted font size for receipt paper */
-        }
-      </style>
-      <div>
-      <div class="bill-container">
-        <div class="bill-header">
-          ${shopDetails.logoUrl ? `<img src="${shopDetails.logoUrl}" alt="Logo" style="width: 150px;height: 150px;border-radius: 20px;margin-bottom: 30px;"` : ''}
-          <div>
-          <h2 style="font-size: 36px">${shopDetails.name}</h2>
-          <p>${shopDetails.address}</p>
-          <p>${shopDetails.phone}</p>
-          <p>Order Bill</p>
-          <p>${new Date().toLocaleDateString()} &nbsp; &nbsp;${new Date().toLocaleTimeString()}</p>
-          </div>      
-          <table class="bill-items">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${order.cart?.map(item => `
-              <tr>
-                <td>${item.name} - ${item.localName}</td>
-                <td>${item.quantity}</td>
-                <td>${item.price.toFixed(3)}</td>
-                <td>${(item.price * item.quantity).toFixed(3)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="bill-summary">
-          <p>Total: ${order.total} OMR</p>
-        </div>
-        </div>
-        </div>
-        
-      </div>
-      </div>
-    `;
-        const printWindow = window.open('', '');
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.print();
-    };
-
-    const handleEditOrder = async (orderId) => {
-        const orderDoc = await getDoc(doc(db, 'orders', orderId));
-        if (orderDoc.exists()) {
-            const orderData = orderDoc.data();
-            dispatch({ type: 'CLEAR_CART' });
-            localStorage.removeItem('cart');
-            setLocalCart(orderData.cart);
-            localStorage.setItem('cart', JSON.stringify(orderData.cart));
-            setSelectedOrderId(orderId);
-        } else {
-            alert('Order not found');
-        }
+    const handleClear = () => {
+        setDisplayValue('');
     };
 
     return (
-        <div className="sale-order">
-            <div style={{ display: 'flex', alignItems: 'space-between', width: '100%' }}>
-                <div className='sale-order-container'>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <h2>Sale Order</h2>
-                        <button className={`order-history-icon ${orders.length > 0 ? 'pulsing-icon' : ''}`} onClick={() => setShowOrders(true)}>
-                            <img width="24" height="24" src="https://img.icons8.com/color/48/order-history.png" alt="order-history" />
-                        </button>
-                    </div>
-
-                    <div className="categories">
-                        <button
-                            className={`category-button ${selectedCategory === null ? 'active' : ''}`}
-                            onClick={() => handleCategoryClick(null)}
-                        >
-                            All Products
-                        </button>
-                        {categories?.length === 0 ? (
-                            <p>No categories available</p>
-                        ) : (
-                            categories?.map(category => (
-                                <button
-                                    key={category.id}
-                                    className={`category-button ${selectedCategory && selectedCategory.id === category.id ? 'active' : ''}`}
-                                    onClick={() => handleCategoryClick(category)}
-                                >
-                                    {category.name}
-                                </button>
-                            ))
-                        )}
-                    </div>
-                    <div className="products">
-                        {products?.length === 0 ? (
-                            <p>No products available</p>
-                        ) : (
-                            products?.map(product => {
-                                const cartItem = localCart.find(item => item.id === product.id) || { quantity: 0 };
-                                const isVisible = selectedCategory === null || selectedCategory.name === product.category;
-                                return (
-                                    <div key={product.id} className={`product-card ${isVisible ? 'fade-in' : 'fade-out'}`} onClick={() => handleQuantityChange(product, cartItem.quantity + 1)}>
-                                        {product.imageUrl && (
-                                            <img src={product.imageUrl} alt={product.name} />
-                                        )}
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <h3>{product.name}</h3>
-                                            <h3>{product.localName}</h3>
-                                            <p style={{ color: 'green' }}>{product.price.toFixed(3)} OMR</p>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                    {showOrders && (
-                        <div className="orders-modal">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                <h2>Orders</h2>
-                                <button className="close-modal" onClick={() => setShowOrders(false)}>Close</button>
-                            </div>
-
-                            <div className="orders-grid">
-                                {orders?.length === 0 ? (
-                                    <p>No orders available</p>
-                                ) : (
-                                    orders?.map(order => (
-                                        <div key={order.orderId} className="order-card">
-                                            <p>Order ID: {order.orderId}</p>
-                                            <p>Date: {order.orderDate}</p>
-                                            <p>Time: {new Date(order.timestamp.toDate()).toLocaleTimeString()}</p>
-                                            <p>Total: {order.total} OMR</p>
-                                            <button onClick={() => handleEditOrder(order.orderId)}>Edit</button>
-                                            <button onClick={() => handleDeleteOrder(order.orderId)} className="delete-button">Delete</button>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
+        <div className="sale-pos">
+            <div className="left-panel">
+                <div className="search-container">
+                    <Select
+                        options={filteredItems.map(item => ({
+                            value: item.id,
+                            label: item.name
+                        }))}
+                        onChange={(selectedOption) => {
+                            const selectedItem = items.find(item => item.id === selectedOption.value);
+                            if (selectedItem) handleItemAdd(selectedItem);
+                        }}
+                        placeholder="Search or Scan the product"
+                        isClearable
+                    />
                 </div>
-                <div className="cart" style={{ overflowY: 'scroll' }}>
-                    <h2>Cart</h2>
-                    <div className='cart-item-holder'>
-                        <table className='cart-table'>
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Price</th>
-                                    <th>Total</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {localCart?.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5">No items in the cart</td>
-                                    </tr>
-                                ) : (
-                                    localCart?.map(item => (
-                                        <tr key={item.id} className="cart-item">
-                                            <td>{item.name}</td>
-                                            <td>
-                                                <div className="incrementer" style={{ gap: '0px' }}>
-                                                    <button onClick={() => handleQuantityChange(item, item.quantity - 1)} disabled={item.quantity === 0}>-</button>
-                                                    <span>{item.quantity}</span>
-                                                    <button onClick={() => handleQuantityChange(item, item.quantity + 1)}>+</button>
-                                                </div>
-                                            </td>
-                                            <td>{item.price.toFixed(3)} OMR</td>
-                                            <td>{(item.price * item.quantity).toFixed(3)} OMR</td>
-                                            <td>
-                                                <button onClick={() => handleRemoveFromCart(item.id)} className='remove'>Remove</button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="cart-summary">
-                        <p>Subtotal: {calculateSubtotal().toFixed(3)} OMR</p>
-                        <p>Discount: <input type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value))} /></p>
-                        <p>Total: {calculateTotal().toFixed(3)} OMR</p>
-                        <button onClick={handlePlaceOrder}>Place Order</button>
-                    </div>
+                <table className="sales-table">
+                    <thead>
+                        <tr>
+                            <th>SN</th>
+                            <th>Item</th>
+                            <th>UOM</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Disc</th>
+                            <th>Tax</th>
+                            <th>Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cart.map((cartItem, index) => (
+                            <tr
+                                key={cartItem.id}
+                                onClick={() => setSelectedItem(cartItem)}
+                                className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                            >
+                                <td>{index + 1}</td>
+                                <td>{cartItem.name}</td>
+                                <td>{cartItem.unitType}</td>
+                                <td>{cartItem.quantity}</td>
+                                <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
+                                <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
+                                <td>{cartItem.taxType}</td>
+                                <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <div className="sales-summary">
+                    <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
                 </div>
             </div>
+
+            <div style={{ display: 'flex' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", height: "95vh", width: '300px' }}>
+                    <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '300px' }}>
+                        {departments.map(department => (
+                            <button
+                                key={department.name}
+                                onClick={() => handleDepartmentClick(department)}
+                            >
+                                {department.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="items">
+                    {filteredItems.length === 0 && selectedDepartment ? (
+                        <p>No items available in this department</p>
+                    ) : filteredItems.map(item => (
+                        <div
+                            key={item.id}
+                            className="product-card-sale"
+                            onClick={() => handleItemAdd(item)}
+                        >
+                            <p>{item.name}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="right-panel">
+                <div className="action-buttons">
+                    <button onClick={() => setShowPendingOrders(true)}>Pending Orders</button>
+                    <button>Return</button>
+                    <button>Drawer</button>
+                    <button>Reprint</button>
+                    <button>Hold</button>
+                    <button>Unhold</button>
+                    <button>Void</button>
+                    <button onClick={() => setShowHistory(true)}>History</button>
+                    <button>Switch</button>
+                    <button>Customer</button>
+                </div>
+                <button className="remove" onClick={handleRemoveItem}>Remove</button>
+                <button className="remove" onClick={handlePlaceOrder} style={{ background: 'green' }}>Place Order</button>
+                <div className="keypad">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
+                        <button
+                            key={key}
+                            onClick={() => setDisplayValue(displayValue + key)}
+                        >
+                            {key}
+                        </button>
+                    ))}
+                    <button onClick={() => handleKeypadClick('QTY')} style={{ background: 'blue' }}>QTY</button>
+                    <button onClick={() => handleKeypadClick('PRICE')} style={{ background: 'orange' }}>PRICE</button>
+                    <button onClick={handleClear} style={{ background: 'red' }}>Clear</button>
+                </div>
+            </div>
+
+            {/* Sale History Section */}
+            {showHistory && (
+                <SaleHistory
+                    onClose={() => setShowHistory(false)}
+                />
+            )}
+
+            {/* Pending Orders Section */}
+            {showPendingOrders && (
+                <SaleHistory
+                    status="order"
+                    onClose={() => setShowPendingOrders(false)}
+                />
+            )}
         </div>
     );
 }
 
-export default SaleOrder;
+export default SaleOrderPOS;
