@@ -22,35 +22,6 @@
     --delete-button-hover-bg: #c82333;
 }
 
-/* Style the scrollbar container */
-::-webkit-scrollbar {
-    width: 2px;
-    /* Width of the scrollbar */
-    height: 12px;
-    /* Height of the scrollbar (horizontal) */
-}
-
-/* Style the scrollbar track */
-::-webkit-scrollbar-track {
-    background: #ececec;
-    /* Background color of the track */
-    border-radius: 10px;
-    /* Rounded corners */
-}
-
-/* Style the scrollbar handle */
-::-webkit-scrollbar-thumb {
-    background: #888;
-    /* Color of the scrollbar handle */
-    border-radius: 10px;
-    /* Rounded corners */
-}
-
-/* Style the scrollbar handle on hover */
-::-webkit-scrollbar-thumb:hover {
-    background: #555;
-    /* Color of the scrollbar handle on hover */
-}
 
 
 body {
@@ -59,6 +30,7 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    font-size: 15px;
 }
 
 td {

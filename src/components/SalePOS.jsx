@@ -472,7 +472,7 @@ function SalePOS() {
                         value={displayValue}
                         readOnly
                         placeholder="Enter or scan product code"
-                        style={{ width: '95%', padding: '20px' }}
+                        style={{ width: '90%', padding: '20px' }}
                     />
                 </div>
                 <div className="keypad">

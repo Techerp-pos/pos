@@ -68,17 +68,18 @@ function ShopDetails() {
     return (
         <div className="shop-details-container">
             <h2>Shop Details</h2>
+            <img width="96" height="96" src="https://img.icons8.com/fluency/48/small-business.png" alt="small-business" />
             <div className="shop-details-content">
                 {shopDetails.logoUrl && (
                     <img src={shopDetails.logoUrl} className="shop-logo" alt="Shop Logo" style={{ maxWidth: '350px' }} />
                 )}
-                <p>Name: <span className="shop-name">{shopDetails.name}</span></p>
-                <p>Address: <span className="shop-address">{shopDetails.address}</span></p>
+                <p>Shop <br></br> <span className="shop-name">{shopDetails.name}</span></p>
+                {/* <p>Address: <span className="shop-address">{shopDetails.address}</span></p>
                 <p>Phone: <span className="shop-phone">{shopDetails.phone}</span></p>
                 <p>Shop Code: <span className="shop-code">{shopDetails.shopCode}</span></p>
                 <p>Created By: <span className="created-by">{shopDetails.createdBy}</span></p>
-                <p>Created At: <span className="created-at">{new Date(shopDetails.createdAt.seconds * 1000).toLocaleDateString()}</span></p>
-                <button className="edit-btn"><Link to={'/settings'}>Edit</Link></button>
+                <p>Created At: <span className="created-at">{new Date(shopDetails.createdAt.seconds * 1000).toLocaleDateString()}</span></p> */}
+                {/* <button className="edit-btn"><Link to={'/settings'}>Edit</Link></button> */}
             </div>
         </div>
     );

@@ -39,52 +39,52 @@ function Header() {
           </svg>
         )}
       </button>
-      <nav>
+      <nav className='header-nav'>
         <ul>
           <li className={activeLink === '/dashboard' ? 'active-link' : ''}>
-            <NavLink to="/dashboard" onClick={() => handleSetActiveLink('/dashboard')}>
+            <NavLink to="/dashboard" onClick={() => handleSetActiveLink('/dashboard')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/material/24/000000/dashboard-layout.png" alt="dashboard-layout" style={{ filter: 'invert(1)' }} title='Dashboard' />
               <span className="link-text">Dashboard</span>
             </NavLink>
           </li>
           <li className={activeLink === '/pos' ? 'active-link' : ''}>
-            <NavLink to="/pos" onClick={() => handleSetActiveLink('/pos')}>
+            <NavLink to="/pos" onClick={() => handleSetActiveLink('/pos')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/material/24/sale-price-tag.png" alt="sale-price-tag" style={{ filter: 'invert(1)' }} title='Point of Sale' />
               <span className="link-text">POS</span>
             </NavLink>
           </li>
           <li className={activeLink === '/add-category' ? 'active-link' : ''}>
-            <NavLink to="/add-category" onClick={() => handleSetActiveLink('/add-category')}>
+            <NavLink to="/add-category" onClick={() => handleSetActiveLink('/add-category')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/sorting-answers.png" alt="sorting-answers" style={{ filter: 'invert(1)' }} title='Category' />
               <span className="link-text">Category</span>
             </NavLink>
           </li>
           <li className={activeLink === '/product-page' ? 'active-link' : ''}>
-            <NavLink to="/product-page" onClick={() => handleSetActiveLink('/product-page')}>
+            <NavLink to="/product-page" onClick={() => handleSetActiveLink('/product-page')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/product.png" alt="product" style={{ filter: 'invert(1)' }} title='Product' />
               <span className="link-text">Product</span>
             </NavLink>
           </li>
           <li className={activeLink === '/customer-page' ? 'active-link' : ''}>
-            <NavLink to="/customer-page" onClick={() => handleSetActiveLink('/customer-page')}>
+            <NavLink to="/customer-page" onClick={() => handleSetActiveLink('/customer-page')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/gender-neutral-user.png" alt="gender-neutral-user" style={{ filter: 'invert(1)' }} title='Customer' />
               <span className="link-text">Customer</span>
             </NavLink>
           </li>
           <li className={activeLink === '/vendor' ? 'active-link' : ''}>
-            <NavLink to="/vendor" onClick={() => handleSetActiveLink('/vendor')}>
+            <NavLink to="/vendor" onClick={() => handleSetActiveLink('/vendor')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/stall.png" alt="stall" style={{ filter: 'invert(1)' }} title='Vendor' />
               <span className="link-text">Vendor</span>
             </NavLink>
           </li>
-          <li className={activeLink === '/inventory' ? 'active-link' : ''}>
-            <NavLink to="/inventory" onClick={() => handleSetActiveLink('/inventory')}>
+          <li className={activeLink === '/inventory' ? 'active-link' : ''} >
+            <NavLink to="/inventory" onClick={() => handleSetActiveLink('/inventory')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/glyph-neue/64/warehouse.png" alt="warehouse" style={{ filter: 'invert(1)' }} title='Inventory' />
               <span className="link-text">Inventory</span>
             </NavLink>
           </li>
           <li className={activeLink === '/accounts' ? 'active-link' : ''}>
-            <NavLink to="/accounts" onClick={() => handleSetActiveLink('/accounts')}>
+            <NavLink to="/accounts" onClick={() => handleSetActiveLink('/accounts')} style={{display: 'flex', gap: '30px'}}>
               <img width="24" height="24" src="https://img.icons8.com/material-outlined/24/cashbook.png" alt="warehouse" style={{ filter: 'invert(1)' }} title='Inventory' />
               <span className="link-text">Accounts</span>
             </NavLink>

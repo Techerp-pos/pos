@@ -318,8 +318,8 @@ function SaleOrderPOS() {
             </div>
 
             <div style={{ display: 'flex' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", height: "95vh", width: '300px' }}>
-                    <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '300px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll",  width: '200px' }}>
+                    <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
                         {departments.map(department => (
                             <button
                                 key={department.name}

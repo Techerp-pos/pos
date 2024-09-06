@@ -22,6 +22,11 @@
     margin-bottom: 20px;
 }
 
+.product-list-header h2{
+    font-size: Bold;
+    font-weight: 700;
+}
+
 .product-list-header button{
     background-color: transparent;
     border-radius: 800px;
@@ -49,8 +54,13 @@
     margin-bottom: 5px;
 }
 
+.product-table tr:nth-child(odd) {
+    background-color: rgba(240, 240, 240, 0.418);
+}
+
 .product-table th {
     background-color: white;
+    padding: 20px 0px;
 }
 
 .product-table tr:nth-child(even) {
