@@ -294,22 +294,22 @@ function SalePOS() {
             `Time: ${new Date().toLocaleTimeString()}\n`,
             `Served By: ${currentUser.displayName || 'admin'}\n`,
             `Customer: Walk In\n`, // Assuming Walk In customer for now
-            '--------------------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             'Sl  Item                    Qty  Price  Amount\n', // Header for items
-            '--------------------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             ...cart.map((item, index) => {
                 const price = parseFloat(item?.price || 0);  // Ensure price is a number
                 const amount = (price * parseFloat(item.quantity || 0)).toFixed(3); // Calculate amount
 
                 return `${(index + 1).toString().padEnd(3)} ${item.name.padEnd(20)} ${item.quantity.toString().padEnd(4)} ${price.toFixed(3).padEnd(6)} ${amount}\n`;
             }),
-            '--------------------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             `Total ExTax:               ${cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
             `VAT 5%:                    ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
             `Net Total:                 ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
             `Paid:                      ${parseFloat(paymentDetails.amountPaid).toFixed(3)} OMR\n`,
             `Balance:                   ${parseFloat(paymentDetails.balance).toFixed(3)} OMR\n`,
-            '--------------------------------------------------\n', // Full width separator
+            '------------------------------------------------\n', // Full width separator
             '\x1B\x61\x01', // Center align
             `Transaction Complete!\n`,
             '\x1B\x64\x05', // Feed 5 lines to ensure the print is fully ejected

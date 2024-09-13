@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ProductList from '../components/ProductList';
 import '../utility/Product.css'; // Create a CSS file to style the component
 import CategoryList from '../components/CategoryList';
+import Departments from '../components/Departments';
 
 const Product = () => {
     const [activeTab, setActiveTab] = useState('ProductList');
@@ -12,6 +13,8 @@ const Product = () => {
                 return <ProductList />;
             case 'CategoryList':
                 return <CategoryList />;
+            case 'Department':
+                return <Departments />;
             default:
                 return <ProductList />;
         }
@@ -20,17 +23,23 @@ const Product = () => {
     return (
         <div className="product-page-container">
             <div className="tabs">
-                <div 
-                    className={`tab ${activeTab === 'ProductList' ? 'active' : ''}`} 
+                <div
+                    className={`tab ${activeTab === 'ProductList' ? 'active' : ''}`}
                     onClick={() => setActiveTab('ProductList')}
                 >
                     Product
                 </div>
-                <div 
-                    className={`tab ${activeTab === 'CategoryList' ? 'active' : ''}`} 
+                <div
+                    className={`tab ${activeTab === 'CategoryList' ? 'active' : ''}`}
                     onClick={() => setActiveTab('CategoryList')}
                 >
                     Category
+                </div>
+                <div
+                    className={`tab ${activeTab === 'Department' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('Department')}
+                >
+                    Departments
                 </div>
             </div>
             <div className="tab-content">

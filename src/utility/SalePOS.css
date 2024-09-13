@@ -1,5 +1,6 @@
 .sale-pos {
     display: flex;
+    min-height: calc(100vh - 10px); /* subtracting the height of a header, for example */
     max-height: calc(100vh - 10px); /* subtracting the height of a header, for example */
     padding: 5px 0px;
     max-width: calc(100vw - 10px);

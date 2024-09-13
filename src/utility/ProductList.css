@@ -1,4 +1,4 @@
-.product-list-container{
+.product-list-container {
     display: flex;
     flex-direction: column;
     padding: 30px;
@@ -22,20 +22,20 @@
     margin-bottom: 20px;
 }
 
-.product-list-header h2{
+.product-list-header h2 {
     font-size: Bold;
     font-weight: 700;
 }
 
-.product-list-header button{
+.product-list-header button {
     background-color: transparent;
     border-radius: 800px;
     border: none;
     /* padding: 5px; */
 }
 
-.product-list-header button:hover{
-    background-color:#4CAF50;
+.product-list-header button:hover {
+    background-color: #4CAF50;
     transition: 0.3s ease-in;
 }
 
@@ -52,10 +52,6 @@
     text-align: left;
     padding: 2px;
     margin-bottom: 5px;
-}
-
-.product-table tr:nth-child(odd) {
-    background-color: rgba(240, 240, 240, 0.418);
 }
 
 .product-table th {
