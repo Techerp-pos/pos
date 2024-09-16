@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
@@ -13,8 +13,6 @@ import AddCategory from './components/AddCategory';
 import SaleOrder from './components/SaleOrder';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import PrivateRoute from './components/PrivateRoute';
-// import Sale from './components/Sale';
 import Settings from './components/Settings';
 import DailySales from './components/DailySales';
 import DayClose from './components/DayClose';
@@ -22,7 +20,7 @@ import AddShop from './components/AddShop';
 import AddUser from './components/AddUser';
 import AddProducts from './components/AddProducts';
 import Product from './pages/Product';
-import VendorForm from './components/VendorForm'
+import VendorForm from './components/VendorForm';
 import VendorList from './components/VendorList';
 import CustomerList from './components/CustomerList';
 import Inventory from './components/InventoryList';
@@ -37,6 +35,8 @@ import JournalEntry from './components/JournalEntry';
 import JournalEntryList from './components/JournalEntryList';
 import AccountsList from './components/AccountsList';
 import ChartOfAccounts from './components/ChartofAccounts';
+import Loader from './components/Loader'; // Import the Loader component
+
 function App() {
   return (
     <div className="app">
@@ -54,6 +54,23 @@ function App() {
 
 function PrivateRoutes() {
   const { currentUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate a loading delay to represent fetching user data or similar operations
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000); // You can adjust the delay as needed
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+
+    return (<div className="main-content">
+      <Loader />
+    </div>);
+  }
 
   return currentUser ? (
     <>

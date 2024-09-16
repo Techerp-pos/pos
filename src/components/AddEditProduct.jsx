@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../config/firebase';
-import { doc, setDoc, addDoc, collection, getDocs, query, orderBy, where, limit, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection, getDocs, query, orderBy, where, limit, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import JsBarcode from 'jsbarcode';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  TextField, Button, Tabs, Tab, Table, TableHead, TableRow, TableCell, TableBody,
+  Select, MenuItem, InputLabel, FormControl, Box, Typography, IconButton, Grid, Card, CardContent
+} from '@mui/material';
+import { UploadOutlined, Add, DeleteOutline } from '@mui/icons-material';
 import '../utility/AddEditProduct.css';
 
 function AddEditProduct({ onClose, product: initialProduct }) {
@@ -16,11 +21,11 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     vendor: '',
     department: '',
     category: '',
-    taxType: 'vat 5%', // Set default tax type
-    vat: 5, // Initial VAT value based on default taxType
+    taxType: 'vat 5%',
+    vat: 5,
     barcode: '',
-    stock: 0, // Added stock input field
-    pricing: [{ unitType: 'PCS', factor: 1, price: '', margin: '', barcode: '' }],
+    stock: 0,
+    pricing: [{ unitType: 'PCS', factor: 1, cost: '', price: '', margin: '', barcode: '' }],
     imageUrl: '',
     addedBy: currentUser ? currentUser.uid : 'Unknown',
     shopCode: currentUser.shopCode
@@ -35,8 +40,8 @@ function AddEditProduct({ onClose, product: initialProduct }) {
   const [newCategory, setNewCategory] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [activeTab, setActiveTab] = useState('product');
-  const barcodeRef = useRef();
-  const imageRef = useRef();
+  const barcodeRef = useRef(null); // Change to `null` initially
+  const [lastUsedBarcode, setLastUsedBarcode] = useState('1300000000001');
 
   useEffect(() => {
     if (initialProduct) {
@@ -45,15 +50,46 @@ function AddEditProduct({ onClose, product: initialProduct }) {
         code: initialProduct.code,
         barcode: initialProduct.barcode,
         stock: initialProduct.stock,
-        pricing: initialProduct.pricing || [{ unitType: 'PCS', factor: 1, price: '', margin: '', barcode: '' }],
-        vat: initialProduct.taxType === 'vat 5%' ? 5 : 0, // Initialize VAT based on taxType
+        pricing: initialProduct.pricing || [{ unitType: 'PCS', factor: 1, cost: '', price: '', margin: '', barcode: initialProduct.barcode }],
+        vat: initialProduct.taxType === 'vat 5%' ? 5 : 0,
       });
       fetchProductHistory(initialProduct.id);
       fetchBatches(initialProduct.id);
+      const barcodes = [initialProduct.barcode, ...initialProduct.pricing.map(p => p.barcode)];
+      const maxBarcode = barcodes.reduce((max, bc) => bc > max ? bc : max, '0');
+      setLastUsedBarcode(maxBarcode);
     } else {
       fetchLatestProduct();
     }
   }, [initialProduct]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchCategories();
+      fetchDepartments();
+      fetchVendors();
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (product.barcode && barcodeRef.current) {
+      // Use JsBarcode to generate a barcode on an SVG element
+      JsBarcode(barcodeRef.current, String(product.barcode), {
+        format: "CODE128",
+        lineColor: "#000",
+        width: 2,
+        height: 40,
+        displayValue: true,
+      });
+      setProduct(prevProduct => {
+        const updatedPricing = [...prevProduct.pricing];
+        if (updatedPricing.length > 0) {
+          updatedPricing[0].barcode = product.barcode;
+        }
+        return { ...prevProduct, pricing: updatedPricing };
+      });
+    }
+  }, [product.barcode]);
 
   const fetchLatestProduct = async () => {
     const productsRef = collection(db, 'products');
@@ -61,49 +97,48 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     const querySnapshot = await getDocs(q);
     if (querySnapshot.size > 0) {
       const latestProduct = querySnapshot.docs[0].data();
+      const newBarcode = (parseInt(latestProduct.barcode, 10) + 1).toString().padStart(13, '0');
       setProduct(prevState => ({
         ...prevState,
         code: (parseInt(latestProduct.code, 10) + 1).toString().padStart(3, '0'),
-        barcode: (parseInt(latestProduct.barcode, 10) + 1).toString().padStart(13, '0'),
+        barcode: newBarcode,
+        pricing: [{ unitType: 'PCS', factor: 1, cost: '', price: '', margin: '', barcode: newBarcode }]
       }));
     } else {
+      const newBarcode = '1300000000001';
       setProduct(prevState => ({
         ...prevState,
         code: '001',
-        barcode: '1300000000001',
+        barcode: newBarcode,
+        pricing: [{ unitType: 'PCS', factor: 1, cost: '', price: '', margin: '', barcode: newBarcode }]
       }));
+      setLastUsedBarcode(newBarcode);
     }
   };
 
-  useEffect(() => {
-    fetchDepartments();
-    fetchCategories();
-    fetchVendors();
-  }, []);
-
   const fetchDepartments = async () => {
     const departmentCollection = collection(db, 'departments');
-    const departmentSnapshot = await getDocs(departmentCollection);
-    setDepartments(departmentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const q = query(departmentCollection, where('shopCode', '==', currentUser.shopCode));
+    onSnapshot(q, (snapshot) => {
+      setDepartments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
   };
 
   const fetchCategories = async () => {
     const categoryCollection = collection(db, 'categories');
-    const categorySnapshot = await getDocs(categoryCollection);
-    setCategories(categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const q = query(categoryCollection, where('shopCode', '==', currentUser.shopCode))
+    onSnapshot(q, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
   };
 
   const fetchVendors = async () => {
     const vendorsCollection = collection(db, 'vendors');
-    const vendorsSnapshot = await getDocs(vendorsCollection);
-    setVendors(vendorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const q = query(vendorsCollection, where('shopCode', '==', currentUser.shopCode));
+    onSnapshot(q, (snapshot) => {
+      setVendors(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
   };
-
-  useEffect(() => {
-    if (product.barcode) {
-      JsBarcode(barcodeRef.current, String(product.barcode));
-    }
-  }, [product.barcode]);
 
   const handleImageUpload = async (file) => {
     const storageRef = ref(storage, `product_images/${file.name}`);
@@ -113,15 +148,36 @@ function AddEditProduct({ onClose, product: initialProduct }) {
   };
 
   const handleAddPricing = () => {
+    const nextBarcode = (parseInt(lastUsedBarcode, 10) + 1).toString().padStart(13, '0');
     setProduct(prevState => ({
       ...prevState,
-      pricing: [...prevState.pricing, { unitType: '', factor: '', price: '', margin: '', barcode: '' }]
+      pricing: [...prevState.pricing, { unitType: '', factor: '', cost: '', price: '', margin: '', barcode: nextBarcode }]
     }));
+    setLastUsedBarcode(nextBarcode);
   };
 
   const handlePricingChange = (index, field, value) => {
     const updatedPricing = [...product.pricing];
     updatedPricing[index][field] = value;
+
+    const cost = parseFloat(updatedPricing[index].cost) || 0;
+    let price = parseFloat(updatedPricing[index].price) || 0;
+    let margin = parseFloat(updatedPricing[index].margin) || 0;
+
+    if (field === 'cost' || field === 'price') {
+      // Recalculate margin
+      if (cost !== 0) {
+        margin = ((price - cost) / cost) * 100;
+        updatedPricing[index].margin = margin.toFixed(2);
+      } else {
+        updatedPricing[index].margin = '';
+      }
+    } else if (field === 'margin') {
+      // Recalculate price
+      price = cost + (cost * margin / 100);
+      updatedPricing[index].price = price.toFixed(2);
+    }
+
     setProduct({ ...product, pricing: updatedPricing });
   };
 
@@ -130,109 +186,20 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     setProduct({ ...product, pricing: updatedPricing });
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === 'taxType') {
-      // Update VAT value based on selected taxType
-      const vatValue = value === 'vat 5%' ? 5 : 0;
-      setProduct({ ...product, taxType: value, vat: vatValue });
-    } else {
-      setProduct({ ...product, [name]: value });
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const productData = {
-        ...product,
-        code: product.code.toString().padStart(3, '0'),
-        barcode: product.barcode.toString().padStart(13, '0'),
-        stock: parseInt(product.stock, 10),
-      };
-
-      let action;
-      let productId;
-      if (initialProduct) {
-        await setDoc(doc(db, 'products', initialProduct.id), productData);
-        action = 'Update';
-        productId = initialProduct.id;
-      } else {
-        const docRef = await addDoc(collection(db, 'products'), productData);
-        action = 'Create';
-        productId = docRef.id;
-      }
-
-      // Generate and save batch
-      const batchData = {
-        batchNumber: generateBatchNumber(),
-        batchDate: new Date(),
-        initialQty: productData.stock,
-        remainingQty: productData.stock,
-        receivedCost: productData.pricing[0].price,
-        currentCost: productData.pricing[0].price,
-        productId: productId,
-        shopCode: currentUser.shopCode,
-      };
-      await addDoc(collection(db, 'productBatches'), batchData);
-
-      // Update history
-      const stockChange = productData.stock - (initialProduct?.stock || 0);
-      await addDoc(collection(db, 'productHistory'), {
-        productId: productId,
-        date: new Date(),
-        activityType: action,
-        description: `${action} product ${productData.name}`,
-        quantity: `${stockChange > 0 ? '+' : ''}${stockChange}`,
-        stock: productData.stock,
-        price: productData.pricing[0].price,
-        updatedBy: currentUser.email,
-      });
-
-      onClose();
-    } catch (error) {
-      console.error('Error adding/updating product: ', error);
-      alert('Failed to add/update product');
-    }
+  const fetchProductHistory = async (productId) => {
+    const historyRef = collection(db, 'productHistory');
+    const q = query(historyRef, where('productId', '==', productId), orderBy('date', 'desc'));
+    onSnapshot(q, (snapshot) => {
+      setHistory(snapshot.docs.map(doc => doc.data()));
+    });
   };
 
   const fetchBatches = async (productId) => {
     const batchRef = collection(db, 'productBatches');
     const q = query(batchRef, where('productId', '==', productId), orderBy('batchDate', 'desc'));
-    const batchSnapshot = await getDocs(q);
-    setBatches(batchSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  };
-
-  const fetchProductHistory = async (productId) => {
-    const historyRef = collection(db, 'productHistory');
-    const q = query(historyRef, where('productId', '==', productId), orderBy('date', 'desc'));
-    const historySnapshot = await getDocs(q);
-    setHistory(historySnapshot.docs.map(doc => doc.data()));
-  };
-
-  const handleFilterHistory = async () => {
-    if (!startDate || !endDate) {
-      alert('Please select both start and end date');
-      return;
-    }
-
-    const historyRef = collection(db, 'productHistory');
-    const q = query(
-      historyRef,
-      where('productId', '==', initialProduct.id),
-      where('date', '>=', new Date(startDate)),
-      where('date', '<=', new Date(endDate))
-    );
-    const historySnapshot = await getDocs(q);
-    setHistory(historySnapshot.docs.map(doc => doc.data()));
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      handleImageUpload(file);
-    }
+    onSnapshot(q, (snapshot) => {
+      setBatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
   };
 
   const handleAddCategory = async () => {
@@ -252,400 +219,502 @@ function AddEditProduct({ onClose, product: initialProduct }) {
     }
   };
 
-  const handleBatchChange = async (batchId, field, value) => {
-    const updatedBatches = batches.map(batch =>
-      batch.id === batchId ? { ...batch, [field]: value } : batch
-    );
-    setBatches(updatedBatches);
+  const handleFilterHistory = async () => {
+    if (!startDate || !endDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
 
-    const batchDocRef = doc(db, 'productBatches', batchId);
-    await updateDoc(batchDocRef, { [field]: value });
+    const historyRef = collection(db, 'productHistory');
+    const q = query(
+      historyRef,
+      where('productId', '==', initialProduct.id),
+      where('date', '>=', new Date(startDate)),
+      where('date', '<=', new Date(endDate))
+    );
+    onSnapshot(q, (snapshot) => {
+      setHistory(snapshot.docs.map(doc => doc.data()));
+    });
   };
 
   const generateBatchNumber = () => {
     return `BATCH-${Date.now()}`;
   };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const productData = {
+        ...product,
+        code: product.code.toString().padStart(3, '0'),
+        barcode: product.barcode.toString().padStart(13, '0'),
+        stock: parseInt(product.stock, 10),
+      };
+
+      let action;
+      let productId;
+      if (initialProduct) {
+        await setDoc(doc(db, 'products', initialProduct.id), productData);
+        action = 'Update';
+        productId = initialProduct.id;
+      } else {
+        const docRef = await addDoc(collection(db, 'products'), productData);
+        action = 'Create';
+        productId = docRef.id;
+      }
+      const batchData = {
+        batchNumber: generateBatchNumber(),
+        batchDate: new Date(),
+        initialQty: productData.stock,
+        remainingQty: productData.stock,
+        receivedCost: productData.pricing[0].cost,
+        currentCost: productData.pricing[0].cost,
+        productId: productId,
+        shopCode: currentUser.shopCode,
+      };
+      await addDoc(collection(db, 'productBatches'), batchData);
+
+      const stockChange = productData.stock - (initialProduct?.stock || 0);
+      await addDoc(collection(db, 'productHistory'), {
+        productId: productId,
+        date: new Date(),
+        activityType: action,
+        description: `${action} product ${productData.name}`,
+        quantity: `${stockChange > 0 ? '+' : ''}${stockChange}`,
+        stock: productData.stock,
+        price: productData.pricing[0].price,
+        updatedBy: currentUser.email,
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Error adding/updating product: ', error);
+      alert('Failed to add/update product');
+    }
+  };
+
   return (
-    <div className='product-modal-container'>
-      <div className="modal-header">
-        <h2>{initialProduct ? `${product.name}` : 'Add New Product'}</h2>
-        <button className="close-button" onClick={onClose}>X</button>
-      </div>
-      <div className="modal-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'product' ? 'active' : ''}`}
-          onClick={() => setActiveTab('product')}
-        >
-          Product
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'stock' ? 'active' : ''}`}
-          onClick={() => setActiveTab('stock')}
-        >
-          Stock Batch
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          History
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'images' ? 'active' : ''}`}
-          onClick={() => setActiveTab('images')}
-        >
-          Product Images
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
-          onClick={() => setActiveTab('info')}
-        >
-          More Info
-        </button>
-      </div>
-      <form onSubmit={handleSubmit} className="product-form">
+    <Card className='product-modal-container'>
+      <CardContent>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">
+            {initialProduct ? `Edit ${product.name}` : 'Add New Product'}
+          </Typography>
+          <Button variant="contained" color="error" onClick={onClose} startIcon={<DeleteOutline />}>
+            Close
+          </Button>
+        </Box>
+
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="Product" value="product" />
+          <Tab label="Stock Batch" value="stock" />
+          <Tab label="History" value="history" />
+          <Tab label="Product Images" value="images" />
+          <Tab label="More Info" value="info" />
+        </Tabs>
+
         {activeTab === 'product' && (
-          <div className="tab-content">
-            <div className="form-group">
-              <label>Code</label>
-              <input
-                type="text"
-                name="code"
-                value={product.code}
-                onChange={handleChange}
-                readOnly={!!initialProduct}
-              />
-            </div>
-            <div className="form-group dual-input">
-              <label>Name</label>
-              <input
-                type="text"
-                name="name"
-                value={product.name}
-                onChange={handleChange}
-                required
-              />
-              <label>Short Name</label>
-              <input
-                type="text"
-                name="shortName"
-                value={product.shortName}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group dual-input">
-              <label>Local Name</label>
-              <input
-                type="text"
-                name="localName"
-                value={product.localName}
-                onChange={handleChange}
-              />
-              <label>Vendor</label>
-              <select
-                name="vendor"
-                value={product.vendor}
-                onChange={handleChange}
-                required
-              >
-                <option value="" disabled>Select Vendor</option>
-                {vendors.map(vendor => (
-                  <option key={vendor.id} value={vendor.name}>{vendor.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group dual-input">
-              <label>Department</label>
-              <select
-                name="department"
-                value={product.department}
-                onChange={handleChange}
-              >
-                <option value="" disabled>Select Department</option>
-                {departments.map(department => (
-                  <option key={department.id} value={department.name}>{department.name}</option>
-                ))}
-              </select>
-              <label>Category</label>
-              <div className="category-selection">
-                <select
-                  name="category"
-                  value={product.category}
-                  onChange={handleChange}
+          <Box component="form" onSubmit={handleSubmit} mt={2}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Code"
+                  variant="outlined"
+                  value={product.code}
+                  InputProps={{ readOnly: !!initialProduct }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Name"
+                  variant="outlined"
+                  value={product.name}
+                  onChange={(e) => setProduct({ ...product, name: e.target.value })}
                   required
-                >
-                  <option value="" disabled>Select Category</option>
-                  {categories.map(category => (
-                    <option key={category.id} value={category.name}>{category.name}</option>
-                  ))}
-                </select>
-                <button type="button" className="add-category-btn" onClick={() => setShowNewCategoryInput(true)}>+</button>
-              </div>
-              {showNewCategoryInput && (
-                <div className="new-category-input">
-                  <input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="New Category"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Short Name"
+                  variant="outlined"
+                  value={product.shortName}
+                  onChange={(e) => setProduct({ ...product, shortName: e.target.value })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Local Name"
+                  variant="outlined"
+                  value={product.localName}
+                  onChange={(e) => setProduct({ ...product, localName: e.target.value })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Vendor</InputLabel>
+                  <Select
+                    value={product.vendor}
+                    onChange={(e) => setProduct({ ...product, vendor: e.target.value })}
                     required
+                  >
+                    {vendors.map((vendor) => (
+                      <MenuItem key={vendor.id} value={vendor.name}>
+                        {vendor.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    value={product.department}
+                    onChange={(e) => setProduct({ ...product, department: e.target.value })}
+                  >
+                    {departments.map((department) => (
+                      <MenuItem key={department.id} value={department.name}>
+                        {department.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={product.category}
+                    onChange={(e) => setProduct({ ...product, category: e.target.value })}
+                    required
+                  >
+                    {categories.map((category) => (
+                      <MenuItem key={category.id} value={category.name}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Tax Type</InputLabel>
+                  <Select
+                    value={product.taxType}
+                    onChange={(e) => setProduct({ ...product, taxType: e.target.value })}
+                  >
+                    <MenuItem value="vat 0%">VAT 0%</MenuItem>
+                    <MenuItem value="vat 5%">VAT 5%</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Barcode"
+                  variant="outlined"
+                  value={product.barcode}
+                  onChange={(e) => setProduct({ ...product, barcode: e.target.value })}
+                  inputRef={barcodeRef}
+                />
+                <svg ref={barcodeRef}></svg>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Stock"
+                  variant="outlined"
+                  type="number"
+                  value={product.stock}
+                  onChange={(e) => setProduct({ ...product, stock: e.target.value })}
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<UploadOutlined />}
+                  component="label"
+                >
+                  Upload Product Image
+                  <input
+                    type="file"
+                    hidden
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        handleImageUpload(e.target.files[0]);
+                      }
+                    }}
                   />
-                  <button type="button" onClick={handleAddCategory}>Add</button>
-                </div>
-              )}
-            </div>
-            <div className="form-group dual-input">
-              <label>Tax Type</label>
-              <select
-                name="taxType"
-                value={product.taxType}
-                onChange={handleChange}
-              >
-                <option value="vat 0%">VAT 0%</option>
-                <option value="vat 5%">VAT 5%</option>
-              </select>
-              <label>Barcode</label>
-              <input
-                type="number"
-                name="barcode"
-                value={product.barcode}
-                onChange={handleChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const scannerInput = e.target.value.trim();
-                    setProduct({ ...product, barcode: scannerInput });
-                  }
-                }}
-              />
-              <svg ref={barcodeRef}></svg>
-            </div>
-            <div className="form-group">
-              <label>Stock</label>
-              <input
-                type="number"
-                name="stock"
-                value={product.stock}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <button type="button" onClick={handleAddPricing}>
-              +
-            </button>
-            <table className="pricing-table">
-              <thead>
-                <tr>
-                  <th>Unit Type</th>
-                  <th>Factor</th>
-                  <th>Cost without & with Tax</th>
-                  <th>Margin %</th>
-                  <th>Price with Tax</th>
-                  <th>Barcodes</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {product.pricing.map((pricingItem, index) => (
-                  <tr key={index}>
-                    <td>
-                      <select
-                        value={pricingItem.unitType}
-                        onChange={(e) => handlePricingChange(index, 'unitType', e.target.value)}
-                        required
-                      >
-                        <option value="PCS">PCS</option>
-                        <option value="Each">Each</option>
-                        <option value="Pack">Pack</option>
-                        <option value="Box">Box</option>
-                        <option value="Carton">Carton</option>
-                        <option value="Kg">Kg</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={pricingItem.factor}
-                        onChange={(e) => handlePricingChange(index, 'factor', e.target.value)}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={pricingItem.price}
-                        onChange={(e) => handlePricingChange(index, 'price', e.target.value)}
-                        required
-                      />
-                      {/* Calculate cost including VAT */}
-                      <input
-                        type="number"
-                        value={(pricingItem.price * (1 + product.vat / 100)).toFixed(2)}
-                        readOnly
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        value={pricingItem.margin}
-                        onChange={(e) => handlePricingChange(index, 'margin', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={(pricingItem.price * (1 + product.vat / 100)).toFixed(2)}
-                        readOnly
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        value={pricingItem.barcode}
-                        onChange={(e) => handlePricingChange(index, 'barcode', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const scannerInput = e.target.value.trim();
-                            handlePricingChange(index, 'barcode', scannerInput);
-                          }
-                        }}
-                      />
-                    </td>
-                    <td>
-                      {index > 0 && (
-                        <button type="button" onClick={() => handleRemovePricing(index)}>
-                          X
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </Button>
+                {product.imageUrl && <img src={product.imageUrl} alt="Product" style={{ marginTop: 10, maxWidth: '100%' }} />}
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="primary"
+                  onClick={handleAddPricing}
+                  startIcon={<Add />}
+                >
+                  Add Pricing
+                </Button>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Unit Type</TableCell>
+                      <TableCell>Factor</TableCell>
+                      <TableCell>Cost</TableCell>
+                      <TableCell>Price</TableCell>
+                      <TableCell>Margin %</TableCell>
+                      <TableCell>Barcode</TableCell>
+                      <TableCell>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {product.pricing.map((pricing, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <FormControl fullWidth>
+                            <Select
+                              value={pricing.unitType}
+                              onChange={(e) => handlePricingChange(index, 'unitType', e.target.value)}
+                            >
+                              <MenuItem value="PCS">PCS</MenuItem>
+                              <MenuItem value="Each">Each</MenuItem>
+                              <MenuItem value="Pack">Pack</MenuItem>
+                              <MenuItem value="Box">Box</MenuItem>
+                              <MenuItem value="Carton">Carton</MenuItem>
+                              <MenuItem value="Kg">Kg</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            type="number"
+                            value={pricing.factor}
+                            onChange={(e) => handlePricingChange(index, 'factor', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            type="number"
+                            inputProps={{ step: '0.01' }}
+                            value={pricing.cost}
+                            onChange={(e) => handlePricingChange(index, 'cost', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            type="number"
+                            inputProps={{ step: '0.01' }}
+                            value={pricing.price}
+                            onChange={(e) => handlePricingChange(index, 'price', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            type="number"
+                            inputProps={{ step: '0.01' }}
+                            value={pricing.margin}
+                            onChange={(e) => handlePricingChange(index, 'margin', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            value={pricing.barcode}
+                            onChange={(e) => handlePricingChange(index, 'barcode', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {index > 0 && (
+                            <IconButton
+                              color="error"
+                              onClick={() => handleRemovePricing(index)}
+                            >
+                              <DeleteOutline />
+                            </IconButton>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Grid>
+              <Grid item xs={12}>
+                <Button variant="contained" color="primary" fullWidth type="submit">
+                  {initialProduct ? 'Update Product' : 'Save'}
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
         )}
+
+        {/* Stock Batch Tab */}
         {activeTab === 'stock' && (
-          <div className="tab-content">
-            <h3>Stock Batches</h3>
-            <table className="batch-table">
-              <thead>
-                <tr>
-                  <th>Batch Number</th>
-                  <th>Batch Date</th>
-                  <th>Initial Qty</th>
-                  <th>Remaining Qty</th>
-                  <th>Received Cost</th>
-                  <th>Current Cost</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {batches.map(batch => (
-                  <tr key={batch.id}>
-                    <td>{batch.batchNumber}</td>
-                    <td>{new Date(batch.batchDate.seconds * 1000).toLocaleDateString()}</td>
-                    <td>{batch.initialQty}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={batch.remainingQty}
-                        onChange={(e) => handleBatchChange(batch.id, 'remainingQty', e.target.value)}
-                      />
-                    </td>
-                    <td>{batch.receivedCost}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={batch.currentCost}
-                        onChange={(e) => handleBatchChange(batch.id, 'currentCost', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      {/* Add any other actions like deleting a batch if necessary */}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Batch Number</TableCell>
+                <TableCell>Batch Date</TableCell>
+                <TableCell>Initial Qty</TableCell>
+                <TableCell>Remaining Qty</TableCell>
+                <TableCell>Received Cost</TableCell>
+                <TableCell>Current Cost</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {batches.map((batch) => (
+                <TableRow key={batch.id}>
+                  <TableCell>{batch.batchNumber}</TableCell>
+                  <TableCell>{new Date(batch.batchDate.seconds * 1000).toLocaleDateString()}</TableCell>
+                  <TableCell>{batch.initialQty}</TableCell>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      value={batch.remainingQty}
+                      onChange={(e) => handleBatchChange(batch.id, 'remainingQty', e.target.value)}
+                    />
+                  </TableCell>
+                  <TableCell>{batch.receivedCost}</TableCell>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      value={batch.currentCost}
+                      onChange={(e) => handleBatchChange(batch.id, 'currentCost', e.target.value)}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
+
+        {/* History Tab */}
         {activeTab === 'history' && (
-          <div className="tab-content">
-            <div className="history-filter">
-              <div className="form-group dual-input">
-                <label>Start Date</label>
-                <input
+          <Box mt={2}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="Start Date"
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
                 />
-                <label>End Date</label>
-                <input
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="End Date"
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
                 />
-              </div>
-              <button type="button" onClick={handleFilterHistory} className='save-btn'>Load</button>
-            </div>
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Activity Type</th>
-                  <th>Description</th>
-                  <th>Quantity Change</th>
-                  <th>Stock</th>
-                  <th>Price Change</th>
-                  <th>Price</th>
-                  <th>Updated By</th>
-                </tr>
-              </thead>
-              <tbody>
+              </Grid>
+              <Grid item xs={12}>
+                <Button variant="contained" color="primary" fullWidth onClick={handleFilterHistory}>
+                  Load
+                </Button>
+              </Grid>
+            </Grid>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Activity Type</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Quantity Change</TableCell>
+                  <TableCell>Stock</TableCell>
+                  <TableCell>Price</TableCell>
+                  <TableCell>Updated By</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {history.map((record, index) => (
-                  <tr key={index}>
-                    <td>{new Date(record.date.seconds * 1000).toLocaleDateString()}</td>
-                    <td>{record.activityType}</td>
-                    <td>{record.description}</td>
-                    <td>{record.quantity}</td>
-                    <td>{record.stock}</td>
-                    <td>{record.priceChange}</td>
-                    <td>{record.price}</td>
-                    <td>{record.updatedBy}</td>
-                  </tr>
+                  <TableRow key={index}>
+                    <TableCell>{new Date(record.date.seconds * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell>{record.activityType}</TableCell>
+                    <TableCell>{record.description}</TableCell>
+                    <TableCell>{record.quantity}</TableCell>
+                    <TableCell>{record.stock}</TableCell>
+                    <TableCell>{record.price}</TableCell>
+                    <TableCell>{record.updatedBy}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Box>
         )}
+
+        {/* Product Images Tab */}
         {activeTab === 'images' && (
-          <div className="tab-content">
-            <div className="form-group">
-              <label>Product Image</label>
+          <Box mt={2}>
+            <Button
+              variant="outlined"
+              startIcon={<UploadOutlined />}
+              component="label"
+            >
+              Upload Product Image
               <input
                 type="file"
-                ref={imageRef}
-                onChange={handleImageChange}
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                  }
+                }}
               />
-              {product.imageUrl && <img src={product.imageUrl} alt="Product" />}
-            </div>
-          </div>
+            </Button>
+            {product.imageUrl && <img src={product.imageUrl} alt="Product" style={{ marginTop: 10, maxWidth: '100%' }} />}
+          </Box>
         )}
+
+        {/* More Info Tab */}
         {activeTab === 'info' && (
-          <div className="tab-content">
-            <p>More product info...</p>
-          </div>
+          <Box mt={2}>
+            <Typography variant="body2">More product info...</Typography>
+          </Box>
         )}
-        <div className="modal-footer">
-          <button type="button" className="delete-btn">Delete</button>
-          <button type="submit" className="save-btn">
-            {initialProduct ? 'Update Product' : 'Save'}
-          </button>
-        </div>
-      </form>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

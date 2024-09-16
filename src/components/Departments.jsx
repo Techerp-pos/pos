@@ -2,18 +2,45 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  Box,
+  Button,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  DialogActions,
+} from '@mui/material';
 
 function Departments() {
   const { currentUser } = useAuth();
   const [departments, setDepartments] = useState([]);
-  const [newDepartment, setNewDepartment] = useState({ code: '', name: '', isDeliItem: false, promotion: '' });
+  const [newDepartment, setNewDepartment] = useState({
+    code: '',
+    name: '',
+    isDeliItem: false,
+    promotion: '',
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch departments function, now accessible throughout the component
+  // Fetch departments function
   const fetchDepartments = async () => {
     const departmentCollection = collection(db, 'departments');
     const departmentSnapshot = await getDocs(departmentCollection);
-    setDepartments(departmentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    setDepartments(
+      departmentSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    );
   };
 
   useEffect(() => {
@@ -22,7 +49,7 @@ function Departments() {
 
   // Function to generate unique department code
   const generateDepartmentCode = () => {
-    const prefix = "DEP"; // Prefix for department code
+    const prefix = 'DEP'; // Prefix for department code
     const codeNumber = departments.length + 1; // Incremental code based on the number of departments
     return `${prefix}-${String(codeNumber).padStart(3, '0')}`; // e.g., DEP-001, DEP-002
   };
@@ -36,11 +63,16 @@ function Departments() {
     try {
       await addDoc(collection(db, 'departments'), {
         ...newDepartment,
-        code: departmentCode,  // Use the generated code
+        code: departmentCode, // Use the generated code
         addedBy: currentUser ? currentUser.uid : 'Unknown',
-        shopCode: currentUser.shopCode
+        shopCode: currentUser.shopCode,
       });
-      setNewDepartment({ code: '', name: '', isDeliItem: false, promotion: '' });
+      setNewDepartment({
+        code: '',
+        name: '',
+        isDeliItem: false,
+        promotion: '',
+      });
       setIsModalOpen(false); // Close the modal after adding
       fetchDepartments(); // Refresh the list after adding the department
     } catch (error) {
@@ -51,9 +83,9 @@ function Departments() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setNewDepartment(prevState => ({
+    setNewDepartment((prevState) => ({
       ...prevState,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -62,78 +94,87 @@ function Departments() {
   };
 
   return (
-    <div className="departments-container">
-      <h2 className="departments-title">Departments</h2>
-
-      {/* Add Department Button */}
-      <button className="add-department-button" onClick={toggleModal}>Add Department</button>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" component="h2" gutterBottom>
+        Departments
+      </Typography>
+      <Button variant="contained" color="primary" onClick={toggleModal}>
+        Add Department
+      </Button>
 
       {/* Department Table */}
-      <table className="departments-table">
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Is Deli Item</th>
-            <th>Promotion</th>
-          </tr>
-        </thead>
-        <tbody>
-          {departments.map(dept => (
-            <tr key={dept.id}>
-              <td className="department-code">{dept.code}</td>
-              <td className="department-name">{dept.name}</td>
-              <td className="department-deliItem">{dept.isDeliItem ? 'Yes' : 'No'}</td>
-              <td className="department-promotion">{dept.promotion}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TableContainer component={Paper} sx={{ mt: 2 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Code</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Is Deli Item</TableCell>
+              <TableCell>Promotion</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {departments.map((dept) => (
+              <TableRow key={dept.id}>
+                <TableCell>{dept.code}</TableCell>
+                <TableCell>{dept.name}</TableCell>
+                <TableCell>{dept.isDeliItem ? 'Yes' : 'No'}</TableCell>
+                <TableCell>{dept.promotion}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Modal for Adding Department */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Add New Department</h3>
-            <form className="departments-form" onSubmit={handleAddDepartment}>
-              <div className="form-group">
-                <label htmlFor="name">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  id="name"
-                  value={newDepartment.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="form-group checkbox-group">
-                <input
-                  type="checkbox"
-                  name="isDeliItem"
-                  id="isDeliItem"
-                  checked={newDepartment.isDeliItem}
-                  onChange={handleChange}
-                />
-                <label htmlFor="isDeliItem">Is Deli Item</label>
-              </div>
-              <div className="form-group">
-                <label htmlFor="promotion">Promotion</label>
-                <input
-                  type="text"
-                  name="promotion"
-                  id="promotion"
-                  value={newDepartment.promotion}
-                  onChange={handleChange}
-                />
-              </div>
-              <button className="add-department-button" type="submit">Add Department</button>
-            </form>
-            <button className="close-modal-button" onClick={toggleModal}>Close</button>
-          </div>
-        </div>
-      )}
-    </div>
+      <Dialog
+        open={isModalOpen}
+        onClose={toggleModal}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Add New Department</DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleAddDepartment} sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Name"
+              name="name"
+              value={newDepartment.name}
+              onChange={handleChange}
+              required
+              margin="normal"
+            />
+            <FormGroup>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={newDepartment.isDeliItem}
+                    onChange={handleChange}
+                    name="isDeliItem"
+                  />
+                }
+                label="Is Deli Item"
+              />
+            </FormGroup>
+            <TextField
+              fullWidth
+              label="Promotion"
+              name="promotion"
+              value={newDepartment.promotion}
+              onChange={handleChange}
+              margin="normal"
+            />
+            <DialogActions>
+              <Button onClick={toggleModal}>Cancel</Button>
+              <Button type="submit" variant="contained" color="primary">
+                Add Department
+              </Button>
+            </DialogActions>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }
 

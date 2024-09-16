@@ -1,97 +1,211 @@
+// Header.js
+
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import '../utility/Header.css'; // Import your CSS file
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+  Box,
+  Drawer as MuiDrawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Divider,
+} from '@mui/material';
+import {
+  Dashboard as DashboardIcon,
+  PointOfSale as PointOfSaleIcon,
+  Category as CategoryIcon,
+  ShoppingCart as ShoppingCartIcon,
+  People as PeopleIcon,
+  Store as StoreIcon,
+  Inventory as InventoryIcon,
+  AccountBalance as AccountBalanceIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+} from '@mui/icons-material';
+import { styled, useTheme } from '@mui/material/styles';
+
+const drawerWidth = 200; // Adjusted to match your previous width
+
+const openedMixin = (theme) => ({
+  width: drawerWidth,
+  backgroundColor: 'rgb(38, 38, 40)', // Set background color
+  color: 'white', // Set text color
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.enteringScreen,
+  }),
+  overflowX: 'hidden',
+  overflowY: 'auto',
+});
+
+const closedMixin = (theme) => ({
+  width: '50px', // Adjusted to match your previous width
+  backgroundColor: 'rgb(38, 38, 40)', // Set background color
+  color: 'white', // Set text color
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  overflowX: 'hidden',
+  overflowY: 'auto',
+});
+
+const DrawerHeader = styled('div')(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center', // Center the toggle button
+  padding: theme.spacing(0, 1),
+  minHeight: '64px', // Adjust as necessary
+}));
+
+const Drawer = styled(MuiDrawer, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  width: open ? drawerWidth : '50px',
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+  boxSizing: 'border-box',
+  position: 'relative',
+  ...(open && {
+    ...openedMixin(theme),
+    '& .MuiDrawer-paper': openedMixin(theme),
+  }),
+  ...(!open && {
+    ...closedMixin(theme),
+    '& .MuiDrawer-paper': closedMixin(theme),
+  }),
+}));
 
 function Header() {
-  const [activeLink, setActiveLink] = useState('/dashboard');
-  const [isOpen, setIsOpen] = useState(true); // State to handle the sidebar toggle
+  const theme = useTheme();
+  const location = useLocation();
+  const [open, setOpen] = useState(true);
 
-  const handleSetActiveLink = (link) => {
-    setActiveLink(link);
+  const handleDrawerToggle = () => {
+    setOpen(!open);
   };
 
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
+  const navItems = [
+    {
+      label: 'Dashboard',
+      path: '/dashboard',
+      icon: <DashboardIcon />,
+    },
+    {
+      label: 'POS',
+      path: '/pos',
+      icon: <PointOfSaleIcon />,
+    },
+    // {
+    //   label: 'Category',
+    //   path: '/add-category',
+    //   icon: <CategoryIcon />,
+    // },
+    {
+      label: 'Product',
+      path: '/product-page',
+      icon: <ShoppingCartIcon />,
+    },
+    {
+      label: 'Customer',
+      path: '/customer-page',
+      icon: <PeopleIcon />,
+    },
+    {
+      label: 'Vendor',
+      path: '/vendor',
+      icon: <StoreIcon />,
+    },
+    {
+      label: 'Inventory',
+      path: '/inventory',
+      icon: <InventoryIcon />,
+    },
+    {
+      label: 'Accounts',
+      path: '/accounts',
+      icon: <AccountBalanceIcon />,
+    },
+  ];
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
-      <button className="toggle-btn" onClick={toggleSidebar}>
-        {isOpen ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="48"
-            height="48"
-            fill="white"
-            viewBox="0 0 24 24"
+    <Box sx={{ display: 'flex' }}>
+      <Drawer variant="permanent" open={open}>
+        <DrawerHeader>
+          <IconButton
+            onClick={handleDrawerToggle}
+            sx={{
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'transparent',
+              },
+            }}
           >
-            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-          </svg>
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="48"
-            height="48"
-            fill="white"
-            viewBox="0 0 24 24"
-          >
-            <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
-          </svg>
-        )}
-      </button>
-      <nav className='header-nav'>
-        <ul>
-          <li className={activeLink === '/dashboard' ? 'active-link' : ''}>
-            <NavLink to="/dashboard" onClick={() => handleSetActiveLink('/dashboard')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/material/24/000000/dashboard-layout.png" alt="dashboard-layout" style={{ filter: 'invert(1)' }} title='Dashboard' />
-              <span className="link-text">Dashboard</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/pos' ? 'active-link' : ''}>
-            <NavLink to="/pos" onClick={() => handleSetActiveLink('/pos')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/material/24/sale-price-tag.png" alt="sale-price-tag" style={{ filter: 'invert(1)' }} title='Point of Sale' />
-              <span className="link-text">POS</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/add-category' ? 'active-link' : ''}>
-            <NavLink to="/add-category" onClick={() => handleSetActiveLink('/add-category')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/sorting-answers.png" alt="sorting-answers" style={{ filter: 'invert(1)' }} title='Category' />
-              <span className="link-text">Category</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/product-page' ? 'active-link' : ''}>
-            <NavLink to="/product-page" onClick={() => handleSetActiveLink('/product-page')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/product.png" alt="product" style={{ filter: 'invert(1)' }} title='Product' />
-              <span className="link-text">Product</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/customer-page' ? 'active-link' : ''}>
-            <NavLink to="/customer-page" onClick={() => handleSetActiveLink('/customer-page')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/gender-neutral-user.png" alt="gender-neutral-user" style={{ filter: 'invert(1)' }} title='Customer' />
-              <span className="link-text">Customer</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/vendor' ? 'active-link' : ''}>
-            <NavLink to="/vendor" onClick={() => handleSetActiveLink('/vendor')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/ios-filled/50/stall.png" alt="stall" style={{ filter: 'invert(1)' }} title='Vendor' />
-              <span className="link-text">Vendor</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/inventory' ? 'active-link' : ''} >
-            <NavLink to="/inventory" onClick={() => handleSetActiveLink('/inventory')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/glyph-neue/64/warehouse.png" alt="warehouse" style={{ filter: 'invert(1)' }} title='Inventory' />
-              <span className="link-text">Inventory</span>
-            </NavLink>
-          </li>
-          <li className={activeLink === '/accounts' ? 'active-link' : ''}>
-            <NavLink to="/accounts" onClick={() => handleSetActiveLink('/accounts')} style={{display: 'flex', gap: '30px'}}>
-              <img width="24" height="24" src="https://img.icons8.com/material-outlined/24/cashbook.png" alt="warehouse" style={{ filter: 'invert(1)' }} title='Inventory' />
-              <span className="link-text">Accounts</span>
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
-    </div>
+            {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+          </IconButton>
+        </DrawerHeader>
+        <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+        <List
+          sx={{
+            listStyleType: 'none',
+            padding: 0,
+          }}
+        >
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <ListItemButton
+                key={item.label}
+                component={NavLink}
+                to={item.path}
+                sx={{
+                  marginY: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 7px',
+                  transition: 'background-color 0.3s ease',
+                  color: 'white',
+                  textDecoration: 'none',
+                  '&.active': {
+                    backgroundColor: '#0076eb',
+                  },
+                  '&:hover': {
+                    backgroundColor: '#0076eb',
+                  },
+                  justifyContent: open ? 'initial' : 'center',
+                  px: 2.5,
+                }}
+                activeClassName="active"
+              >
+                <ListItemIcon
+                  sx={{
+                    color: 'white',
+                    minWidth: 0,
+                    marginRight: open ? 2 : 'auto',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  sx={{
+                    color: 'white',
+                    opacity: open ? 1 : 0,
+                    marginLeft: open ? '10px' : '0',
+                  }}
+                />
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </Drawer>
+      {/* Main content area */}
+      {/* <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      </Box> */}
+    </Box>
   );
 }
 

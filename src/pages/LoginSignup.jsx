@@ -1,17 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Form, Input, Button, message } from 'antd';
+import { UserOutlined, LockOutlined, ShopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import '../utility/login.css'
 
 function LoginSignup() {
-    const emailRef = useRef();
-    const passwordRef = useRef();
-    const loginShopCodeRef = useRef();
-    const signupEmailRef = useRef();
-    const signupPasswordRef = useRef();
-    const signupShopCodeRef = useRef();
-    const { login, signup } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
-    const [isSignup, setIsSignup] = useState(false);
     const [loading, setLoading] = useState(false);
     const [orientation, setOrientation] = useState(window.orientation);
 
@@ -27,27 +23,13 @@ function LoginSignup() {
         };
     }, []);
 
-    const handleLoginSubmit = async (e) => {
-        e.preventDefault();
+    const handleLoginSubmit = async (values) => {
         setLoading(true);
         try {
-            await login(emailRef.current.value, passwordRef.current.value, loginShopCodeRef.current.value);
+            await login(values.email, values.password, values.shopCode);
             navigate('/dashboard');
         } catch (error) {
-            alert(error.message);
-            setLoading(false);
-        }
-    };
-
-    const handleSignupSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            await signup(signupEmailRef.current.value, signupPasswordRef.current.value, signupShopCodeRef.current.value);
-            navigate('/login');
-            setIsSignup(false);
-        } catch (error) {
-            alert(error.message);
+            message.error(error.message);
             setLoading(false);
         }
     };
@@ -65,36 +47,50 @@ function LoginSignup() {
 
     return (
         <div className='Login'>
-            <div className={`Login-container ${isSignup ? 'signup-mode' : ''}`}>
+            <div className='Login-container'>
                 <div className='Login-image-container'>
                     <h1>TechERP V0.1</h1>
                     <img src='./images/img-1.png' className='Login-image' alt="Login" />
                 </div>
                 <div className='Login-form-container'>
-                    {/* <h1>Welcome to TechERP!</h1> */}
                     {loading ? (
                         <img src="./images/login.gif" alt="Loading..." className="loading-gif" />
                     ) : (
-                        !isSignup ? (
-                            <form onSubmit={handleLoginSubmit} className='Login-form'>
-                                <h1>Login</h1>
-                                <input type="email" ref={emailRef} placeholder="Email" required />
-                                <input type="password" ref={passwordRef} placeholder="Password" required />
-                                <input type="text" ref={loginShopCodeRef} placeholder="Shop Code" required />
-                                <p>Forgot Password?</p>
-                                <button type="submit">Log In</button>
-                                <button type="button" onClick={() => setIsSignup(true)}>Sign Up</button>
-                            </form>
-                        ) : (
-                            <form onSubmit={handleSignupSubmit} className='Login-form'>
-                                <h1>Signup</h1>
-                                <input type="email" ref={signupEmailRef} placeholder="Email" required />
-                                <input type="password" ref={signupPasswordRef} placeholder="Password" required />
-                                <input type="text" ref={signupShopCodeRef} placeholder="Shop Code" required />
-                                <button type="submit">Sign Up</button>
-                                <button type="button" onClick={() => setIsSignup(false)}>Back to Log In</button>
-                            </form>
-                        )
+                        <Form
+                            name="login_form"
+                            className="login-form"
+                            initialValues={{ remember: true }}
+                            onFinish={handleLoginSubmit}
+                        >
+                            <div>
+                                <Form.Item
+                                    name="email"
+                                    rules={[{ required: true, message: 'Please input your Email!' }]}
+                                >
+                                    <Input prefix={<UserOutlined />} placeholder="Email" />
+                                </Form.Item>
+                                <Form.Item
+                                    name="password"
+                                    rules={[{ required: true, message: 'Please input your Password!' }]}
+                                >
+                                    <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+                                </Form.Item>
+                                <Form.Item
+                                    name="shopCode"
+                                    rules={[{ required: true, message: 'Please input your Shop Code!' }]}
+                                >
+                                    <Input prefix={<ShopOutlined />} placeholder="Shop Code" />
+                                </Form.Item>
+                            </div>
+                            <div>
+                                <Form.Item>
+                                    <Button type="primary" htmlType="submit" className="login-form-button">
+                                        Log in
+                                    </Button>
+                                </Form.Item>
+                            </div>
+
+                        </Form>
                     )}
                 </div>
             </div>

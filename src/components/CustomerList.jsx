@@ -1,12 +1,26 @@
-// src/components/CustomerList.js
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import '../utility/VendorList.css';
 import AddEditCustomer from './AddEditCustomer';
 import CategoryModal from './CategoryModal';
-import '../utility/CustomerList.css'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Button,
+    Typography,
+    Box,
+    styled,
+} from '@mui/material';
+
+const CustomTableCell = styled(TableCell)(({ theme }) => ({
+    padding: theme.spacing(0.625), // 5px padding (theme.spacing(1) is 8px, so 0.625 * 8px = 5px)
+}));
 
 const CustomerList = () => {
     const { currentUser, isSuperAdmin } = useAuth();
@@ -39,42 +53,57 @@ const CustomerList = () => {
     };
 
     return (
-        <div className="customer-list-container">
-            <div className='customer-list-header'>
-                <h2>Customer List</h2>
-                <button className="add-customer-btn" onClick={() => { setSelectedCustomer(null); setIsModalOpen(true); }}>Add Customer</button>
-            </div>
+        <Box sx={{ p: 3 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h4">Customer List</Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => { setSelectedCustomer(null); setIsModalOpen(true); }}
+                >
+                    Add Customer
+                </Button>
+            </Box>
 
-            <table className="customer-table">
-                <thead>
-                    <tr>
-                        <th>Id</th>
-                        <th>Name</th>
-                        <th>Micr</th>
-                        <th>Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {customers.map(customer => (
-                        <tr key={customer.id}>
-                            <td>{customer.id}</td>
-                            <td>{customer.name}</td>
-                            <td>{customer.micr}</td>
-                            <td>{customer.phone}</td>
-                            <td>
-                                <button className="edit-btn" onClick={() => handleEditCustomer(customer)}>Edit</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <CustomTableCell>Id</CustomTableCell>
+                            <CustomTableCell>Name</CustomTableCell>
+                            <CustomTableCell>Micr</CustomTableCell>
+                            <CustomTableCell>Phone</CustomTableCell>
+                            <CustomTableCell>Actions</CustomTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {customers.map(customer => (
+                            <TableRow key={customer.id}>
+                                <CustomTableCell>{customer.id}</CustomTableCell>
+                                <CustomTableCell>{customer.name}</CustomTableCell>
+                                <CustomTableCell>{customer.micr}</CustomTableCell>
+                                <CustomTableCell>{customer.phone}</CustomTableCell>
+                                <CustomTableCell>
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={() => handleEditCustomer(customer)}
+                                    >
+                                        Edit
+                                    </Button>
+                                </CustomTableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
             {isModalOpen && (
-                <CategoryModal isOpen={isModalOpen}  onClose={() => setIsModalOpen(false)}>
+                <CategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
                     <AddEditCustomer customer={selectedCustomer} onSave={handleSaveCustomer} onClose={() => setIsModalOpen(false)} />
                 </CategoryModal>
             )}
-        </div>
+        </Box>
     );
 };
 

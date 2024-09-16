@@ -2,7 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, addDoc, updateDoc, doc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import '../utility/AddEditVendor.css';
+import {
+    TextField,
+    Checkbox,
+    FormControlLabel,
+    Button,
+    Grid,
+    MenuItem,
+    Select,
+    InputLabel,
+    FormControl,
+    Box,
+} from '@mui/material';
 
 const AddEditCustomer = ({ customer, onSave, onClose }) => {
     const { currentUser } = useAuth();
@@ -22,7 +33,7 @@ const AddEditCustomer = ({ customer, onSave, onClose }) => {
         openingNature: '',
         taxRegistered: false,
         arCustomer: false,
-        shopCode: currentUser.shopCode,  // Automatically set the shopCode from currentUser
+        shopCode: currentUser.shopCode, // Automatically set the shopCode from currentUser
         addedBy: currentUser.uid,
         ...customer
     });
@@ -76,122 +87,184 @@ const AddEditCustomer = ({ customer, onSave, onClose }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ display: 'block' }}>
-            <div className="form-group dual-input">
-                <label>Id:</label>
-                <input
-                    type="text"
-                    name="id"
-                    value={customerData.id}
-                    onChange={handleChange}
-                    required
-                    readOnly
-                />
-                <label>Micr:</label>
-                <input
-                    type="text"
-                    name="micr"
-                    value={customerData.micr}
-                    onChange={handleChange}
-                    required
-                    readOnly
-                    disabled
-                />
-            </div>
-            <div className="form-group dual-input">
-                <label>Name:</label>
-                <input type="text" name="name" value={customerData.name} onChange={handleChange} required />
-                <label>Mobile:</label>
-                <input type="text" name="mobile" value={customerData.mobile} onChange={handleChange} />
-            </div>
-            <div className="form-group dual-input">
-                <label>Address:</label>
-                <input type="text" name="address" value={customerData.address} onChange={handleChange} />
-                <label>Email:</label>
-                <input type="email" name="email" value={customerData.email} onChange={handleChange} />
-            </div>
-            <label>
-                <input
-                    type="checkbox"
-                    name="taxRegistered"
-                    checked={customerData.taxRegistered}
-                    onChange={handleChange}
-                />
-                Tax Registered
-            </label>
-            <div className="form-group dual-input">
-                <label>TRN:</label>
-                <input
-                    type="text"
-                    name="trn"
-                    value={customerData.trn}
-                    onChange={handleChange}
-                    disabled={!customerData.taxRegistered}
-                />
-                <label>Pricing Level:</label>
-                <input type="text" name="pricingLevel" value={customerData.pricingLevel} onChange={handleChange} />
-            </div>
-            <div className="form-group dual-input">
-                <label>Group:</label>
-                <select name="group" value={customerData.group} onChange={handleChange}>
-                    <option value="DEFAULT">Default</option>
-                    {/* <option value="VIP">VIP</option> */}
-                    {/* Add more groups as needed */}
-                </select>
-                <label>
-                    <input
-                        type="checkbox"
-                        name="arCustomer"
-                        checked={customerData.arCustomer}
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+            <Grid container spacing={2}>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Id"
+                        name="id"
+                        value={customerData.id}
+                        onChange={handleChange}
+                        InputProps={{ readOnly: true }}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Micr"
+                        name="micr"
+                        value={customerData.micr}
+                        onChange={handleChange}
+                        InputProps={{ readOnly: true }}
+                        disabled
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Name"
+                        name="name"
+                        value={customerData.name}
+                        onChange={handleChange}
+                        required
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Mobile"
+                        name="mobile"
+                        value={customerData.mobile}
                         onChange={handleChange}
                     />
-                    A/R Customer
-                </label>
-            </div>
-            <div className="form-group dual-input">
-                <label>Credit Amount Limit:</label>
-                <input
-                    type="number"
-                    name="creditAmountLimit"
-                    value={customerData.creditAmountLimit}
-                    onChange={handleChange}
-                    disabled={!customerData.arCustomer}
-                />
-                <label>Credit Day Limit:</label>
-                <input
-                    type="number"
-                    name="creditDayLimit"
-                    value={customerData.creditDayLimit}
-                    onChange={handleChange}
-                    disabled={!customerData.arCustomer}
-                />
-            </div>
-            <div className="form-group dual-input">
-                <label>Opening Amount:</label>
-                <input
-                    type="number"
-                    name="openingAmount"
-                    value={customerData.openingAmount}
-                    onChange={handleChange}
-                    disabled={!customerData.arCustomer}
-                />
-                <label>Opening Nature:</label>
-                <select
-                    name="openingNature"
-                    value={customerData.openingNature}
-                    onChange={handleChange}
-                    disabled={!customerData.arCustomer}
-                >
-                    <option value="" disabled>Select...</option>
-                    <option value="CREDIT">Credit</option>
-                    <option value="DEBIT">Debit</option>
-                </select>
-            </div>
-            <div className="form-actions">
-                <button type="submit">Save Customer</button>
-                <button type="button" onClick={onClose}>Cancel</button>
-            </div>
-        </form>
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Address"
+                        name="address"
+                        value={customerData.address}
+                        onChange={handleChange}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Email"
+                        name="email"
+                        value={customerData.email}
+                        onChange={handleChange}
+                        type="email"
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                name="taxRegistered"
+                                checked={customerData.taxRegistered}
+                                onChange={handleChange}
+                            />
+                        }
+                        label="Tax Registered"
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="TRN"
+                        name="trn"
+                        value={customerData.trn}
+                        onChange={handleChange}
+                        disabled={!customerData.taxRegistered}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Pricing Level"
+                        name="pricingLevel"
+                        value={customerData.pricingLevel}
+                        onChange={handleChange}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <FormControl fullWidth>
+                        <InputLabel>Group</InputLabel>
+                        <Select
+                            name="group"
+                            value={customerData.group}
+                            onChange={handleChange}
+                            label="Group"
+                        >
+                            <MenuItem value="DEFAULT">Default</MenuItem>
+                            {/* <MenuItem value="VIP">VIP</MenuItem> */}
+                            {/* Add more groups as needed */}
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={6}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                name="arCustomer"
+                                checked={customerData.arCustomer}
+                                onChange={handleChange}
+                            />
+                        }
+                        label="A/R Customer"
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Credit Amount Limit"
+                        name="creditAmountLimit"
+                        type="number"
+                        value={customerData.creditAmountLimit}
+                        onChange={handleChange}
+                        disabled={!customerData.arCustomer}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Credit Day Limit"
+                        name="creditDayLimit"
+                        type="number"
+                        value={customerData.creditDayLimit}
+                        onChange={handleChange}
+                        disabled={!customerData.arCustomer}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
+                        label="Opening Amount"
+                        name="openingAmount"
+                        type="number"
+                        value={customerData.openingAmount}
+                        onChange={handleChange}
+                        disabled={!customerData.arCustomer}
+                    />
+                </Grid>
+                <Grid item xs={6}>
+                    <FormControl fullWidth>
+                        <InputLabel>Opening Nature</InputLabel>
+                        <Select
+                            name="openingNature"
+                            value={customerData.openingNature}
+                            onChange={handleChange}
+                            label="Opening Nature"
+                            disabled={!customerData.arCustomer}
+                        >
+                            <MenuItem value="" disabled>Select...</MenuItem>
+                            <MenuItem value="CREDIT">Credit</MenuItem>
+                            <MenuItem value="DEBIT">Debit</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Grid>
+            </Grid>
+            <Box mt={3} display="flex" justifyContent="space-between">
+                <Button variant="contained" color="primary" type="submit">
+                    Save Customer
+                </Button>
+                <Button variant="outlined" onClick={onClose}>
+                    Cancel
+                </Button>
+            </Box>
+        </Box>
     );
 };
 

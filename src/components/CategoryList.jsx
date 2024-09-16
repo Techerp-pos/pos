@@ -1,10 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
-import { auth } from '../config/firebase'; // Assuming you have Firebase auth configured
-import CategoryModal from './CategoryModal';
-import '../utility/CategoryList.css'; // Create a CSS file for category list styling
+import {
+    collection,
+    query,
+    where,
+    doc,
+    getDoc,
+    onSnapshot,
+} from 'firebase/firestore';
+import { auth } from '../config/firebase';
 import AddCategory from './AddCategory';
+
+// Import MUI components
+import {
+    Box,
+    Button,
+    Typography,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+    Paper,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    styled,
+} from '@mui/material';
+
+const CustomTableCell = styled(TableCell)(({ theme }) => ({
+    padding: theme.spacing(0.625), // 5px padding (theme.spacing(1) is 8px, so 0.625 * 8px = 5px)
+}));
 
 const CategoryList = () => {
     const [categories, setCategories] = useState([]);
@@ -16,7 +42,7 @@ const CategoryList = () => {
         const fetchUserShopCode = async () => {
             const user = auth.currentUser;
             if (user) {
-                const userDoc = doc(db, 'users', user.uid); // Adjust the path to match where user data is stored
+                const userDoc = doc(db, 'users', user.uid);
                 const userSnapshot = await getDoc(userDoc);
                 if (userSnapshot.exists()) {
                     setShopCode(userSnapshot.data().shopCode);
@@ -28,16 +54,23 @@ const CategoryList = () => {
     }, []);
 
     useEffect(() => {
-        const fetchCategories = async () => {
-            if (shopCode) {
-                const categoryCollection = collection(db, 'categories');
-                const categoryQuery = query(categoryCollection, where('shopCode', '==', shopCode));
-                const categorySnapshot = await getDocs(categoryQuery);
-                setCategories(categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            }
-        };
+        if (!shopCode) return;
 
-        fetchCategories();
+        const categoryCollection = collection(db, 'categories');
+        const categoryQuery = query(
+            categoryCollection,
+            where('shopCode', '==', shopCode)
+        );
+
+        const unsubscribe = onSnapshot(categoryQuery, (snapshot) => {
+            setCategories(
+                snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+            );
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, [shopCode]);
 
     const handleEditCategory = (category) => {
@@ -46,37 +79,86 @@ const CategoryList = () => {
     };
 
     return (
-        <div className="category-list-container">
-            <div className='category-list-header'>
-                <h2>Category List</h2>
-                <button className="add-category-btn" onClick={() => { setSelectedCategory(null); setIsModalOpen(true); }}>Add Category</button>
-            </div>
-            <table className="category-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {categories.map(category => (
-                        <tr key={category.id}>
-                            <td>{category.name}</td>
-                            <td>{category.description}</td>
-                            <td>
-                                <button className="edit-btn" onClick={() => handleEditCategory(category)}>Edit</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            {isModalOpen && (
-                <CategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-                    <AddCategory category={selectedCategory} onClose={() => setIsModalOpen(false)} />
-                </CategoryModal>
-            )}
-        </div>
+        <Box sx={{ p: 2 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 2,
+                }}
+            >
+                <Typography variant="h6" component="h4">
+                    Category List
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => {
+                        setSelectedCategory(null);
+                        setIsModalOpen(true);
+                    }}
+                >
+                    Add Category
+                </Button>
+            </Box>
+            <Paper>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <CustomTableCell>
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                    Name
+                                </Typography>
+                            </CustomTableCell>
+                            <CustomTableCell>
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                    Description
+                                </Typography>
+                            </CustomTableCell>
+                            <CustomTableCell>
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                    Actions
+                                </Typography>
+                            </CustomTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {categories.map((category) => (
+                            <TableRow key={category.id} hover>
+                                <CustomTableCell>{category.name}</CustomTableCell>
+                                <CustomTableCell>{category.description}</CustomTableCell>
+                                <CustomTableCell>
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={() => handleEditCategory(category)}
+                                    >
+                                        Edit
+                                    </Button>
+                                </CustomTableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Paper>
+            <Dialog
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                fullWidth
+                maxWidth="lg"
+            >
+                <DialogTitle>
+                    {selectedCategory ? 'Edit Category' : 'Add Category'}
+                </DialogTitle>
+                <DialogContent>
+                    <AddCategory
+                        category={selectedCategory}
+                        onClose={() => setIsModalOpen(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+        </Box>
     );
 };
 

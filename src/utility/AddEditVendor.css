@@ -73,7 +73,7 @@ form {
 }
 
 /* Additional styles for a dual-column layout */
-form {
+.vendor-form {
     max-width: 800px;
     margin: 0 auto;
 }

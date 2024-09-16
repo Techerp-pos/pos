@@ -2,9 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import '../utility/VendorList.css';
 import AddEditVendor from './AddEditVendor';
 import CategoryModal from './CategoryModal';
+import {
+    Box,
+    Button,
+    Typography,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+    Paper,
+    IconButton,
+    styled,
+} from '@mui/material';
+import { Edit } from '@mui/icons-material';
+
+const CustomTableCell = styled(TableCell)(({ theme }) => ({
+    padding: theme.spacing(0.625), // 5px padding (theme.spacing(1) is 8px, so 0.625 * 8px = 5px)
+}));
 
 const VendorList = () => {
     const { currentUser, isSuperAdmin } = useAuth();
@@ -22,7 +39,7 @@ const VendorList = () => {
             }
             const vendorSnapshot = await getDocs(vendorQuery);
             const vendorsList = vendorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
+
             // Sort vendors by vendor name (ascending order)
             vendorsList.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -38,48 +55,73 @@ const VendorList = () => {
     };
 
     const handleSaveVendor = () => {
-        // Re-fetch the vendors after saving
         setIsModalOpen(false); // Close modal after saving
         fetchVendors(); // Re-fetch vendors to update the list
     };
 
     return (
-        <div className="vendor-list-container">
-            <div className='vendor-list-header'>
-                <h2>Vendor List</h2>
-                <button className="add-vendor-btn" onClick={() => { setSelectedVendor(null); setIsModalOpen(true); }}>Add Vendor</button>
-            </div>
+        <Box sx={{ p: 2 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 2,
+                }}
+            >
+                <Typography variant="h6" component="h4">
+                    Vendor List
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => {
+                        setSelectedVendor(null);
+                        setIsModalOpen(true);
+                    }}
+                >
+                    Add Vendor
+                </Button>
+            </Box>
 
-            <table className="vendor-table">
-                <thead>
-                    <tr>
-                        <th>Vendor Code</th>
-                        <th>Vendor Name</th>
-                        <th>Contact</th>
-                        <th>Address</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {vendors.map(vendor => (
-                        <tr key={vendor.id}>
-                            <td>{vendor.code}</td>
-                            <td>{vendor.name}</td>
-                            <td>{vendor.contact}</td>
-                            <td>{vendor.address}</td>
-                            <td>
-                                <button className="edit-btn" onClick={() => handleEditVendor(vendor)}>Edit</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <Paper>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <CustomTableCell>Vendor Code</CustomTableCell>
+                            <CustomTableCell>Vendor Name</CustomTableCell>
+                            <CustomTableCell>Contact</CustomTableCell>
+                            <CustomTableCell>Address</CustomTableCell>
+                            <CustomTableCell>Actions</CustomTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {vendors.map(vendor => (
+                            <TableRow key={vendor.id} hover>
+                                <CustomTableCell>{vendor.code}</CustomTableCell>
+                                <CustomTableCell>{vendor.name}</CustomTableCell>
+                                <CustomTableCell>{vendor.contact}</CustomTableCell>
+                                <CustomTableCell>{vendor.address}</CustomTableCell>
+                                <CustomTableCell>
+                                    <IconButton
+                                        color="primary"
+                                        onClick={() => handleEditVendor(vendor)}
+                                    >
+                                        <Edit />
+                                    </IconButton>
+                                </CustomTableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Paper>
+
             {isModalOpen && (
                 <CategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
                     <AddEditVendor vendor={selectedVendor} onSave={handleSaveVendor} onClose={() => setIsModalOpen(false)} />
                 </CategoryModal>
             )}
-        </div>
+        </Box>
     );
 };
 

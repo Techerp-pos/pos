@@ -84,7 +84,7 @@ const AddEditVendor = ({ vendor, onSave, onClose }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className='vendor-form'>
             <div className="form-group">
                 <label>Code:</label>
                 <input
