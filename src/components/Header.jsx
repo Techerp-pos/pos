@@ -83,6 +83,10 @@ function Header() {
   const location = useLocation();
   const [open, setOpen] = useState(true);
 
+  if (location.pathname === '/sale' || location.pathname === '/sale-order') {
+    return null
+  }
+
   const handleDrawerToggle = () => {
     setOpen(!open);
   };

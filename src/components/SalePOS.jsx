@@ -7,6 +7,7 @@ import SaleHistory from './SaleHistory';
 import Select from 'react-select';
 import qz from 'qz-tray';
 import '../utility/SalePOS.css';
+import { useNavigate } from 'react-router-dom';
 
 function SalePOS() {
     const { currentUser } = useAuth();
@@ -26,6 +27,9 @@ function SalePOS() {
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [loadingItems, setLoadingItems] = useState(true);
     const [loadingShopDetails, setLoadingShopDetails] = useState(true);
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [scannedValue, setScannedValue] = useState('');
+    const Navigate = useNavigate();
     let config;
 
     // Fetch shop details when the component mounts
@@ -335,6 +339,42 @@ function SalePOS() {
         setShowPopup(false);
     };
 
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Ignore if event is coming from an input field
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                // Process scannedValue
+                if (scannedValue !== '') {
+                    const matchingItem = items.find(item =>
+                        item.barcode === scannedValue ||
+                        item.name.toLowerCase().includes(scannedValue.toLowerCase())
+                    );
+                    if (matchingItem) {
+                        handleItemAdd(matchingItem);
+                    } else {
+                        alert('Product not found');
+                    }
+                    setScannedValue('');
+                }
+            } else {
+                // Append key to scannedValue
+                setScannedValue(prev => prev + event.key);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [items, scannedValue]);
+
+
     const handleKeypadClick = (value) => {
         if (value === 'Enter') {
             // Check if displayValue matches any product code or name
@@ -348,145 +388,215 @@ function SalePOS() {
                 alert('Product not found');
             }
             setDisplayValue(''); // Clear display after processing
+        } else if (value === 'QTY') {
+            handleQtyChange();
+        } else if (value === 'PRICE') {
+            handlePriceChange();
         } else {
             setDisplayValue(prevValue => prevValue + value);
         }
+
     };
+
+    const handleQtyChange = () => {
+        if (selectedItem) {
+            const newQuantity = parseInt(displayValue, 10);
+            if (!isNaN(newQuantity) && newQuantity > 0) {
+                setCart(cart.map(cartItem =>
+                    cartItem.id === selectedItem.id
+                        ? { ...cartItem, quantity: newQuantity }
+                        : cartItem
+                ));
+                setDisplayValue('');
+                setSelectedItem(null); // Deselect item after updating
+            } else {
+                alert('Please enter a valid quantity.');
+            }
+        } else {
+            alert('Please select an item to change its quantity.');
+        }
+    };
+
+    const handlePriceChange = () => {
+        if (selectedItem) {
+            const newPrice = parseFloat(displayValue);
+            if (!isNaN(newPrice) && newPrice >= 0) {
+                setCart(cart.map(cartItem =>
+                    cartItem.id === selectedItem.id
+                        ? { ...cartItem, price: newPrice.toFixed(3) }
+                        : cartItem
+                ));
+                setDisplayValue('');
+                setSelectedItem(null); // Deselect item after updating
+            } else {
+                alert('Please enter a valid price.');
+            }
+        } else {
+            alert('Please select an item to change its price.');
+        }
+    };
+
 
     const handleClear = () => {
         setDisplayValue('');
     };
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleClose = () => {
+        // window.close(); // Close the window
+        Navigate('/pos')
+    };
+
     return (
         <div className="sale-pos">
-            <div className="left-panel">
-                {loadingItems ? (
-                    <p>Loading items...</p>
-                ) : (
-                    <>
-                        <div className="search-container">
-                            <Select
-                                options={filteredItems.map(item => ({
-                                    value: item.id,
-                                    label: item.name,
-                                }))}
-                                onChange={(selectedOption) => {
-                                    const selectedItem = items.find(item => item.id === selectedOption.value);
-                                    handleItemAdd(selectedItem);
-                                }}
-                                placeholder="Search or Scan the product"
-                                isSearchable
-                            />
-                        </div>
-                        <table className="sales-table">
-                            <thead>
-                                <tr>
-                                    <th>SN</th>
-                                    <th>Item</th>
-                                    <th>UOM</th>
-                                    <th>Qty</th>
-                                    <th>Price</th>
-                                    <th>Disc</th>
-                                    <th>Tax</th>
-                                    <th>Amt</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {cart.map((cartItem, index) => (
-                                    <tr
-                                        key={cartItem.id}
-                                        onClick={() => setSelectedItem(cartItem)}
-                                        className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
-                                    >
-                                        <td>{index + 1}</td>
-                                        <td>{cartItem.name}</td>
-                                        <td>{cartItem.unitType}</td>
-                                        <td>{cartItem.quantity}</td>
-                                        <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
-                                        <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
-                                        <td>{cartItem.taxType}</td>
-                                        <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="sales-summary">
-                            <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
-                        </div>
-                    </>
-                )}
+            <div className="top-bar">
+                <div className="menu-icon">
+                    <span>☰</span> {/* Replace with an actual icon if needed */}
+                </div>
+                <div className="title">Sale</div>
+                <div className="date-time">
+                    {currentTime.toLocaleDateString()} {currentTime.toLocaleTimeString()}
+                </div>
+                <div className="close-icon" onClick={handleClose}>
+                    <span>&times;</span>
+                </div>
             </div>
-            <div style={{ display: 'flex' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", width: '200px' }}>
-                    {loadingDepartments ? (
-                        <p>Loading departments...</p>
-                    ) : departments.length === 0 ? (
-                        <p>No departments available</p>
+
+            <div className="content">
+                <div className="left-panel">
+                    {loadingItems ? (
+                        <p>Loading items...</p>
                     ) : (
-                        <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
-                            {departments.map(department => (
-                                <button
-                                    key={department.name}
-                                    onClick={() => handleDepartmentClick(department)}
-                                >
-                                    {department.name}
-                                </button>
-                            ))}
-                        </div>
+                        <>
+                            <div className="search-container">
+                                <Select
+                                    options={filteredItems.map(item => ({
+                                        value: item.id,
+                                        label: item.name
+                                    }))}
+                                    onChange={(selectedOption) => {
+                                        const selectedItem = items.find(item => item.id === selectedOption.value);
+                                        handleItemAdd(selectedItem);
+                                    }}
+                                    placeholder="Search or Scan the product"
+                                    isSearchable
+                                />
+                            </div>
+                            <table className="sales-table">
+                                <thead>
+                                    <tr>
+                                        <th>SN</th>
+                                        <th>Item</th>
+                                        <th>UOM</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Disc</th>
+                                        <th>Tax</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {cart.map((cartItem, index) => (
+                                        <tr
+                                            key={cartItem.id}
+                                            onClick={() => setSelectedItem(cartItem)}
+                                            className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                                        >
+                                            <td>{index + 1}</td>
+                                            <td>{cartItem.name}</td>
+                                            <td>{cartItem.unitType}</td>
+                                            <td>{cartItem.quantity}</td>
+                                            <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
+                                            <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
+                                            <td>{cartItem.taxType}</td>
+                                            <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <div className="sales-summary">
+                                <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
+                            </div>
+                        </>
                     )}
                 </div>
+                <div style={{ display: 'flex' }}>
+                    <div className='department-button'>
+                        {loadingDepartments ? (
+                            <p>Loading departments...</p>
+                        ) : departments.length === 0 ? (
+                            <p>No departments available</p>
+                        ) : (
+                            <div className="departments">
+                                {departments.map(department => (
+                                    <button
+                                        key={department.name}
+                                        onClick={() => handleDepartmentClick(department)}
+                                    >
+                                        {department.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                <div className="items">
-                    {filteredItems.length === 0 && selectedDepartment ? (
-                        <p>No items available in this department</p>
-                    ) : filteredItems.map(item => (
-                        <div
-                            key={item.id}
-                            className="product-card-sale"
-                            onClick={() => handleItemAdd(item)}
-                        >
-                            <p>{item.name}</p>
-                        </div>
-                    ))}
+                    <div className="items">
+                        {filteredItems.length === 0 && selectedDepartment ? (
+                            <p>No items available in this department</p>
+                        ) : filteredItems.map(item => (
+                            <div
+                                key={item.id}
+                                className="product-card-sale"
+                                onClick={() => handleItemAdd(item)}
+                            >
+                                <p>{item.name}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
 
-            <div className="right-panel">
-                <div className="action-buttons">
-                    <button>Return</button>
-                    <button>Drawer</button>
-                    <button>Reprint</button>
-                    <button>Hold</button>
-                    <button>Unhold</button>
-                    <button onClick={handleVoidCart}>Void</button>
-                    <button onClick={() => setShowHistory(true)}>History</button>
-                    <button>Switch</button>
-                    <button>Customer</button>
-                </div>
-                <button className="remove" onClick={handleRemoveItem}>Remove</button>
-                <button className="payment-btn" onClick={() => setShowPayment(true)}>Payment</button>
-                <div className="display-container">
-                    <input
-                        type="text"
-                        className="keypad-display"
-                        value={displayValue}
-                        readOnly
-                        placeholder="Enter or scan product code"
-                        style={{ width: '90%', padding: '20px' }}
-                    />
-                </div>
-                <div className="keypad">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
-                        <button
-                            key={key}
-                            onClick={() => handleKeypadClick(key)}
-                        >
-                            {key}
-                        </button>
-                    ))}
-                    <button onClick={() => handleKeypadClick('QTY')} style={{ background: 'blue' }}>QTY</button>
-                    <button onClick={() => handleKeypadClick('PRICE')} style={{ background: 'orange' }}>PRICE</button>
-                    <button onClick={handleClear} style={{ background: 'red' }}>Clear</button>
+                <div className="right-panel">
+                    <div className="action-buttons">
+                        <button>Return</button>
+                        <button>Drawer</button>
+                        <button>Reprint</button>
+                        <button>Hold</button>
+                        <button>Unhold</button>
+                        <button onClick={handleVoidCart}>Void</button>
+                        <button onClick={() => setShowHistory(true)}>History</button>
+                        <button>Switch</button>
+                        <button onClick={handleRemoveItem} style={{ background: 'red' }}>Remove</button>
+                    </div>
+                    <button style={{ background: '#ff9800' }}>Customer</button>
+                    <button className="payment-btn" onClick={() => setShowPayment(true)}>Payment</button>
+                    <div className="display-container">
+                        <input
+                            type="text"
+                            className="keypad-display"
+                            value={displayValue}
+                            readOnly
+                            placeholder="Enter or scan product code"
+                        />
+                    </div>
+                    <div className="keypad">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
+                            <button
+                                key={key}
+                                onClick={() => handleKeypadClick(key)}
+                            >
+                                {key}
+                            </button>
+                        ))}
+                        <button onClick={() => handleKeypadClick('QTY')} style={{ background: 'blue' }}>QTY</button>
+                        <button onClick={() => handleKeypadClick('PRICE')} style={{ background: 'orange' }}>PRICE</button>
+                        <button onClick={handleClear} style={{ background: 'red' }}>Clear</button>
+                    </div>
                 </div>
             </div>
 
