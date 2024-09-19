@@ -36,6 +36,10 @@ import JournalEntryList from './components/JournalEntryList';
 import AccountsList from './components/AccountsList';
 import ChartOfAccounts from './components/ChartofAccounts';
 import Loader from './components/Loader'; // Import the Loader component
+// import SalesReport from './components/SalesReport';
+// import SaleByDepartment from './components/SaleByDepartment';
+// import SalesByInvoice from './components/SalesByInvoice';
+import Reports from './components/Reports';
 
 function App() {
   return (
@@ -106,6 +110,9 @@ function PrivateRoutes() {
           <Route path='/journal' element={<JournalEntryList />} />
           <Route path='/accounts' element={<AccountsList />} />
           <Route path='/charts' element={<ChartOfAccounts />} />
+          <Route path='/reports' element={<Reports />} />
+          {/* <Route path='/t' element={<SaleByDepartment />} />
+          <Route path='/tt' element={<SalesByInvoice />} /> */}
         </Routes>
       </div>
     </>

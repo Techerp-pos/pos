@@ -23,6 +23,11 @@ import {
   AccountBalance as AccountBalanceIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  ReportSharp,
+  ReportRounded,
+  ReportTwoTone,
+  Report,
+  Assessment,
 } from '@mui/icons-material';
 import { styled, useTheme } from '@mui/material/styles';
 
@@ -131,6 +136,11 @@ function Header() {
       label: 'Accounts',
       path: '/accounts',
       icon: <AccountBalanceIcon />,
+    },
+    {
+      label: 'Reports',
+      path: '/reports',
+      icon: <Assessment />,
     },
   ];
 
