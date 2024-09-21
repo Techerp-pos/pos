@@ -158,7 +158,7 @@ function SalePOS() {
 
     const handleDepartmentClick = (department) => {
         setSelectedDepartment(department);
-        const departmentItems = items.filter(item => item.department === department.name);
+        const departmentItems = items.filter(item => item.category === department.name);
         if (departmentItems.length > 0) {
             setFilteredItems(departmentItems);
         } else {
@@ -167,27 +167,35 @@ function SalePOS() {
     };
 
     const handleItemAdd = (item) => {
+        // Ensure we are working with the correct pricing option (like "PCS" or "BOX")
         if (item.pricing && item.pricing.length > 0) {
-            const pcsItem = item.pricing.find(p => p.unitType === 'PCS');
-            if (pcsItem) {
+            const selectedPricingOption = item.pricing.find(p => p.unitType === item.unitType)
+                || item.pricing.find(p => p.unitType === 'PCS');
+            if (selectedPricingOption) {
                 item = {
                     ...item,
-                    ...pcsItem,
+                    price: selectedPricingOption.price, // Use the selected pricing option
+                    unitType: selectedPricingOption.unitType, // Assign the unit type
                 };
             } else {
+                alert('Selected unit type not available.');
                 return;
             }
         }
 
-        const existingItem = cart.find(cartItem => cartItem.id === item.id);
+        // Since the item already contains the correct pricing, we can directly proceed
+        const existingItem = cart.find(cartItem => cartItem.id === item.id && cartItem.unitType === item.unitType);
+
         if (existingItem) {
+            // If found, increment the quantity for the item
             setCart(cart.map(cartItem =>
-                cartItem.id === item.id
+                cartItem.id === item.id && cartItem.unitType === item.unitType
                     ? { ...cartItem, quantity: cartItem.quantity + 1 }
                     : cartItem
             ));
         } else {
-            setCart([...cart, { ...item, quantity: 1 }]);
+            // If not found, add the item with initial quantity
+            setCart([...cart, { ...item, quantity: 1, isReturned: false }]);
         }
     };
 
@@ -195,6 +203,19 @@ function SalePOS() {
         if (selectedItem) {
             setCart(cart.filter(cartItem => cartItem.id !== selectedItem.id));
             setSelectedItem(null);
+        }
+    };
+
+    const handleReturnItem = () => {
+        if (selectedItem) {
+            setCart(cart.map(cartItem =>
+                cartItem.id === selectedItem.id && cartItem.unitType === selectedItem.unitType
+                    ? { ...cartItem, isReturned: !cartItem.isReturned }
+                    : cartItem
+            ));
+            setSelectedItem(null); // Deselect after marking as returned
+        } else {
+            alert('Please select an item to return.');
         }
     };
 
@@ -242,6 +263,25 @@ function SalePOS() {
                 orderNumber: orderNumber,
                 status: "completed"
             });
+
+            // Record the returned items separately
+            if (cart.some(cartItem => cartItem.isReturned)) {
+                await addDoc(collection(db, 'returns'), {
+                    shopCode: currentUser.shopCode,
+                    items: cart.filter(cartItem => cartItem.isReturned).map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        unitType: item.unitType,
+                        quantity: item.quantity,
+                        price: item.price,
+                        reason: 'Returned', // Optionally, prompt for a return reason
+                        timestamp: serverTimestamp(),
+                        orderNumber: orderNumber, // Link to the original order
+                        cashier: currentUser.uid,
+                    })),
+                    timestamp: serverTimestamp(),
+                });
+            }
 
             alert('Sale completed successfully!');
             await handlePrintReceipt(orderNumber, paymentDetails);
@@ -350,16 +390,30 @@ function SalePOS() {
             if (event.key === 'Enter') {
                 // Process scannedValue
                 if (scannedValue !== '') {
-                    const matchingItem = items.find(item =>
-                        item.barcode === scannedValue ||
-                        item.name.toLowerCase().includes(scannedValue.toLowerCase())
-                    );
-                    if (matchingItem) {
-                        handleItemAdd(matchingItem);
+                    let matchingItem = null;
+                    let selectedPricingOption = null;
+
+                    // Look for the item by matching barcode inside pricing array
+                    items.forEach(item => {
+                        item.pricing.forEach(pricing => {
+                            if (pricing.barcode === scannedValue) {
+                                matchingItem = item; // Store the matched item
+                                selectedPricingOption = pricing; // Store the matched pricing option
+                            }
+                        });
+                    });
+
+                    if (matchingItem && selectedPricingOption) {
+                        // If item and pricing option are found, add it to cart
+                        handleItemAdd({
+                            ...matchingItem,
+                            price: selectedPricingOption.price,
+                            unitType: selectedPricingOption.unitType
+                        });
                     } else {
-                        alert('Product not found');
+                        alert('Product not found for that barcode');
                     }
-                    setScannedValue('');
+                    setScannedValue(''); // Reset the scanned value
                 }
             } else {
                 // Append key to scannedValue
@@ -373,6 +427,7 @@ function SalePOS() {
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [items, scannedValue]);
+
 
 
     const handleKeypadClick = (value) => {
@@ -474,54 +529,111 @@ function SalePOS() {
                         <p>Loading items...</p>
                     ) : (
                         <>
-                            <div className="search-container">
-                                <Select
-                                    options={filteredItems.map(item => ({
-                                        value: item.id,
-                                        label: item.name
-                                    }))}
-                                    onChange={(selectedOption) => {
-                                        const selectedItem = items.find(item => item.id === selectedOption.value);
-                                        handleItemAdd(selectedItem);
-                                    }}
-                                    placeholder="Search or Scan the product"
-                                    isSearchable
-                                />
-                            </div>
-                            <table className="sales-table">
-                                <thead>
-                                    <tr>
-                                        <th>SN</th>
-                                        <th>Item</th>
-                                        <th>UOM</th>
-                                        <th>Qty</th>
-                                        <th>Price</th>
-                                        <th>Disc</th>
-                                        <th>Tax</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {cart.map((cartItem, index) => (
-                                        <tr
-                                            key={cartItem.id}
-                                            onClick={() => setSelectedItem(cartItem)}
-                                            className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
-                                        >
-                                            <td>{index + 1}</td>
-                                            <td>{cartItem.name}</td>
-                                            <td>{cartItem.unitType}</td>
-                                            <td>{cartItem.quantity}</td>
-                                            <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
-                                            <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
-                                            <td>{cartItem.taxType}</td>
-                                            <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                            <div>
+                                <div className="search-container">
+                                    <Select
+                                        options={filteredItems.flatMap(item =>
+                                            item.pricing.map(pricingOption => ({
+                                                value: `${item.id}-${pricingOption.unitType}`, // Ensure uniqueness by combining id and unitType
+                                                label: (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                        <span>{pricingOption.unitType} ({pricingOption.factor})</span>
+                                                        <span>{item.name}</span>
+                                                        <span>{parseFloat(pricingOption.cost).toFixed(3)} Omr</span>
+                                                    </div>
+                                                ),
+                                                price: pricingOption.price, // Pass along price for later use
+                                                unitType: pricingOption.unitType, // Pass along unit type
+                                                name: item.name, // Pass item name as well
+                                                itemData: item, // Pass item data to handleItemAdd
+                                            }))
+                                        )}
+                                        onChange={(selectedOption) => {
+                                            const selectedItem = items.find(item => item.id === selectedOption.itemData.id);
+                                            handleItemAdd({
+                                                ...selectedItem,
+                                                price: selectedOption.price,
+                                                unitType: selectedOption.unitType,
+                                            });
+                                        }}
+                                        placeholder="Search or Scan the product"
+                                        isSearchable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                border: '1px solid #ccc',
+                                                boxShadow: 'none',
+                                                '&:hover': { border: '1px solid #888' },
+                                            }),
+                                            option: (provided, state) => ({
+                                                ...provided,
+                                                padding: '10px',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                // backgroundColor: state.isSelected ? '#f0f0f0' : 'white',
+                                                // color: state.isSelected ? '#333' : '#000',
+                                                // '&:hover': { backgroundColor: '#e0e0e0' },
+                                            }),
+                                            singleValue: (provided) => ({
+                                                ...provided,
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                                <table className="sales-table">
+                                    <thead>
+                                        <tr>
+                                            <th>SN</th>
+                                            <th>Item</th>
+                                            <th>UOM</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Disc</th>
+                                            <th>Tax</th>
+                                            <th>Amount</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {cart.map((cartItem, index) => (
+                                            <tr
+                                                key={cartItem.id}
+                                                onClick={() => setSelectedItem(cartItem)}
+                                                className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                                                style={cartItem.isReturned ? { textDecoration: 'line-through', backgroundColor: '#ff505f' } : {}}
+                                            >
+                                                <td>{index + 1}</td>
+                                                <td>{cartItem.name}</td>
+                                                <td>{cartItem.unitType}</td>
+                                                <td>{cartItem.quantity}</td>
+                                                <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
+                                                <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
+                                                <td>{cartItem.taxType}</td>
+                                                <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                             <div className="sales-summary">
-                                <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
+                                <p>Total: {cart
+                                    .filter(cartItem => !cartItem.isReturned)
+                                    .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                    .toFixed(3)
+                                } &nbsp;OMR</p>
+                                {cart.some(cartItem => cartItem.isReturned) && (
+                                    <p>Returned Items: {cart
+                                        .filter(cartItem => cartItem.isReturned)
+                                        .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                        .toFixed(3)
+                                    }&nbsp; OMR</p>
+                                )}
+                                <p>Net Total: {cart
+                                    .filter(cartItem => !cartItem.isReturned)
+                                    .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                    .toFixed(3)
+                                } &nbsp;OMR</p>
                             </div>
                         </>
                     )}
@@ -563,7 +675,7 @@ function SalePOS() {
 
                 <div className="right-panel">
                     <div className="action-buttons">
-                        <button>Return</button>
+                        <button onClick={handleReturnItem}>Return</button>
                         <button>Drawer</button>
                         <button>Reprint</button>
                         <button>Hold</button>
@@ -574,7 +686,12 @@ function SalePOS() {
                         <button onClick={handleRemoveItem} style={{ background: 'red' }}>Remove</button>
                     </div>
                     <button style={{ background: '#ff9800' }}>Customer</button>
-                    <button className="payment-btn" onClick={() => setShowPayment(true)}>Payment</button>
+                    <button className="payment-btn"
+                        onClick={() => setShowPayment(true)}
+                        disabled={cart.filter(cartItem => !cartItem.isReturned).length === 0}
+                    >
+                        Payment
+                    </button>
                     <div className="display-container">
                         <input
                             type="text"
@@ -614,7 +731,11 @@ function SalePOS() {
             {/* Payment Section */}
             {showPayment && (
                 <PaymentSection
-                    total={cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}
+                    total={cart
+                        .filter(cartItem => !cartItem.isReturned)
+                        .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                        .toFixed(3)
+                    }
                     onClose={() => setShowPayment(false)}
                     onPaymentComplete={handlePayment}
                 />

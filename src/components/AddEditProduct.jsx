@@ -428,6 +428,12 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                   value={product.barcode}
                   onChange={(e) => setProduct({ ...product, barcode: e.target.value })}
                   inputRef={barcodeRef}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault(); // Prevent form submission
+                      // Optionally, you can trigger a specific action here if needed
+                    }
+                  }}
                 />
                 <svg ref={barcodeRef}></svg>
               </Grid>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Grid, ListItem, ListItemIcon, ListItemText, styled, Box } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -46,60 +46,72 @@ const ListItemIconStyled = styled(ListItemIcon)(({ theme }) => ({
 
 function POSNavbar() {
     return (
-        <Container>
-            <Grid container spacing={4} justifyContent="center">
-                <Grid item>
-                    <NavLinkStyled to="/sale">
-                        <ListItemStyled button>
-                            <ListItemIconStyled>
-                                <ShoppingCartIcon fontSize="large" />
-                            </ListItemIconStyled>
-                            <ListItemText primary="Sale" />
-                        </ListItemStyled>
-                    </NavLinkStyled>
+        <>
+            <div style={{
+                background: '#0056b3',
+                color: 'white',
+                padding: '20px',
+                margin: '5px',
+                borderRadius: '2px'
+            }}>
+                <h1>TechERP</h1>
+            </div>
+            <Container display="flex">
+                <Grid container spacing={4} justifyContent="center">
+                    <Grid item>
+                        <NavLinkStyled to="/sale">
+                            <ListItemStyled button>
+                                <ListItemIconStyled>
+                                    <ShoppingCartIcon fontSize="large" />
+                                </ListItemIconStyled>
+                                <ListItemText primary="Sale" />
+                            </ListItemStyled>
+                        </NavLinkStyled>
+                    </Grid>
+                    <Grid item>
+                        <NavLinkStyled to="/sale-order">
+                            <ListItemStyled button>
+                                <ListItemIconStyled>
+                                    <ReceiptIcon fontSize="large" />
+                                </ListItemIconStyled>
+                                <ListItemText primary="Sale Order" />
+                            </ListItemStyled>
+                        </NavLinkStyled>
+                    </Grid>
+                    <Grid item>
+                        <NavLinkStyled to="/service">
+                            <ListItemStyled button>
+                                <ListItemIconStyled>
+                                    <BuildIcon fontSize="large" />
+                                </ListItemIconStyled>
+                                <ListItemText primary="Service" />
+                            </ListItemStyled>
+                        </NavLinkStyled>
+                    </Grid>
+                    <Grid item>
+                        <NavLinkStyled to="/day-close">
+                            <ListItemStyled button>
+                                <ListItemIconStyled>
+                                    <CalendarTodayIcon fontSize="large" />
+                                </ListItemIconStyled>
+                                <ListItemText primary="Day Close" />
+                            </ListItemStyled>
+                        </NavLinkStyled>
+                    </Grid>
+                    <Grid item>
+                        <NavLinkStyled to="/settings">
+                            <ListItemStyled button>
+                                <ListItemIconStyled>
+                                    <SettingsIcon fontSize="large" />
+                                </ListItemIconStyled>
+                                <ListItemText primary="Settings" />
+                            </ListItemStyled>
+                        </NavLinkStyled>
+                    </Grid>
                 </Grid>
-                <Grid item>
-                    <NavLinkStyled to="/sale-order">
-                        <ListItemStyled button>
-                            <ListItemIconStyled>
-                                <ReceiptIcon fontSize="large" />
-                            </ListItemIconStyled>
-                            <ListItemText primary="Sale Order" />
-                        </ListItemStyled>
-                    </NavLinkStyled>
-                </Grid>
-                <Grid item>
-                    <NavLinkStyled to="/service">
-                        <ListItemStyled button>
-                            <ListItemIconStyled>
-                                <BuildIcon fontSize="large" />
-                            </ListItemIconStyled>
-                            <ListItemText primary="Service" />
-                        </ListItemStyled>
-                    </NavLinkStyled>
-                </Grid>
-                <Grid item>
-                    <NavLinkStyled to="/day-close">
-                        <ListItemStyled button>
-                            <ListItemIconStyled>
-                                <CalendarTodayIcon fontSize="large" />
-                            </ListItemIconStyled>
-                            <ListItemText primary="Day Close" />
-                        </ListItemStyled>
-                    </NavLinkStyled>
-                </Grid>
-                <Grid item>
-                    <NavLinkStyled to="/settings">
-                        <ListItemStyled button>
-                            <ListItemIconStyled>
-                                <SettingsIcon fontSize="large" />
-                            </ListItemIconStyled>
-                            <ListItemText primary="Settings" />
-                        </ListItemStyled>
-                    </NavLinkStyled>
-                </Grid>
-            </Grid>
-        </Container>
+            </Container>
+        </>
+
     );
 }
 

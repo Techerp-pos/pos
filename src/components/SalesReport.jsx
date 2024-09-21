@@ -65,7 +65,7 @@ const SalesReport = () => {
 
     const fetchDepartments = async () => {
         try {
-            const q = query(collection(db, 'departments'));
+            const q = query(collection(db, 'departments'), where('shopCode', '==', currentUser.shopCode));
             const snapshot = await getDocs(q);
             setDepartments(snapshot.docs.map(doc => doc.data()));
         } catch (err) {
@@ -76,7 +76,7 @@ const SalesReport = () => {
 
     const fetchVendors = async () => {
         try {
-            const q = query(collection(db, 'vendors'));
+            const q = query(collection(db, 'vendors'), where('shopCode', '==', currentUser.shopCode));
             const snapshot = await getDocs(q);
             setVendors(snapshot.docs.map(doc => doc.data()));
         } catch (err) {
@@ -110,26 +110,20 @@ const SalesReport = () => {
             setError("Please select both start and end dates.");
             return;
         }
-
+    
         setLoading(true);
         setError(null);
         try {
-            let q = query(
-                collection(db, 'orders'),
+            // Build the initial query with date range
+            const qConstraints = [
                 where('timestamp', '>=', new Date(startDate)),
-                where('timestamp', '<=', new Date(endDate))
-            );
-
-            if (selectedDepartment) {
-                q = query(q, where('department', '==', selectedDepartment));
-            }
-
-            if (selectedVendor) {
-                q = query(q, where('vendor', '==', selectedVendor));
-            }
-
+                where('timestamp', '<=', new Date(endDate)),
+                where('shopCode', '==', currentUser.shopCode) // Assuming you want to filter by shopCode
+            ];
+    
+            const q = query(collection(db, 'orders'), ...qConstraints);
             const snapshot = await getDocs(q);
-
+    
             const orders = snapshot.docs.map(doc => {
                 const orderData = doc.data();
                 const items = Array.isArray(orderData.items) ? orderData.items : [];
@@ -141,8 +135,29 @@ const SalesReport = () => {
                     }))
                 };
             });
-
-            const data = processReportData(orders);
+    
+            // Apply department and vendor filters client-side
+            let filteredOrders = orders;
+    
+            if (selectedDepartment) {
+                filteredOrders = filteredOrders.filter(order =>
+                    order.items.some(item => {
+                        const product = productMap[item.name];
+                        return product && product.department === selectedDepartment;
+                    })
+                );
+            }
+    
+            if (selectedVendor) {
+                filteredOrders = filteredOrders.filter(order =>
+                    order.items.some(item => {
+                        const product = productMap[item.name];
+                        return product && product.vendor === selectedVendor;
+                    })
+                );
+            }
+    
+            const data = processReportData(filteredOrders);
             setReportData(data);
         } catch (err) {
             console.error("Error fetching report data:", err);
@@ -150,7 +165,7 @@ const SalesReport = () => {
         } finally {
             setLoading(false);
         }
-    };
+    };    
 
     const processReportData = (ordersWithDetails) => {
         const reportData = {};
@@ -199,7 +214,6 @@ const SalesReport = () => {
         });
         return Object.values(reportData);
     };
-
 
     const exportToExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(reportData);
