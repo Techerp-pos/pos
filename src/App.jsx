@@ -40,6 +40,7 @@ import Loader from './components/Loader'; // Import the Loader component
 // import SaleByDepartment from './components/SaleByDepartment';
 // import SalesByInvoice from './components/SalesByInvoice';
 import Reports from './components/Reports';
+import { QZTrayProvider } from './contexts/QzTrayContext';
 
 function App() {
   return (
@@ -78,43 +79,45 @@ function PrivateRoutes() {
 
   return currentUser ? (
     <>
-      <Header />
-      <div className="main-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/product" element={<ProductList />} />
-          <Route path="/add-product" element={<AddEditProduct />} />
-          <Route path="/edit-product/:id" element={<AddEditProduct />} />
-          <Route path="/product-listing" element={<ProductList />} />
-          <Route path="/departments" element={<Departments />} />
-          <Route path="/terminals" element={<Terminals />} />
-          <Route path="/add-category" element={<AddCategory />} />
-          <Route path="/sale-order" element={<SaleOrderPOS />} />
-          <Route path='/sale' element={<SalePOS />} />
-          <Route path='/settings' element={<Settings />} />
-          <Route path='/day-close' element={<DayClosePOS />} />
-          <Route path='/add-shop' element={<AddShop />} />
-          <Route path='/add-user' element={<AddUser />} />
-          <Route path='/add-products' element={<AddProducts />} />
-          <Route path='/product-page' element={<Product />} />
-          <Route path='/vendor' element={<VendorList />} />
-          <Route path='/customer-page' element={<CustomerList />} />
-          <Route path='/inventory' element={<Inventory />} />
-          <Route path='/lpo' element={<LocalPurchaseOrder />} />
-          <Route path='grn' element={<GoodsReceiveNote />} />
-          <Route path='/view-list' element={<ViewList />} />
-          <Route path="/grv-list" element={<ViewList orderType="GRV" />} />
-          <Route path='/grv' element={<GoodsReturnVoucher />} />
-          <Route path='/journal' element={<JournalEntryList />} />
-          <Route path='/accounts' element={<AccountsList />} />
-          <Route path='/charts' element={<ChartOfAccounts />} />
-          <Route path='/reports' element={<Reports />} />
-          {/* <Route path='/t' element={<SaleByDepartment />} />
+      <QZTrayProvider>
+        <Header />
+        <div className="main-content">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/product" element={<ProductList />} />
+            <Route path="/add-product" element={<AddEditProduct />} />
+            <Route path="/edit-product/:id" element={<AddEditProduct />} />
+            <Route path="/product-listing" element={<ProductList />} />
+            <Route path="/departments" element={<Departments />} />
+            <Route path="/terminals" element={<Terminals />} />
+            <Route path="/add-category" element={<AddCategory />} />
+            <Route path="/sale-order" element={<SaleOrderPOS />} />
+            <Route path='/sale' element={<SalePOS />} />
+            <Route path='/settings' element={<Settings />} />
+            <Route path='/day-close' element={<DayClosePOS />} />
+            <Route path='/add-shop' element={<AddShop />} />
+            <Route path='/add-user' element={<AddUser />} />
+            <Route path='/add-products' element={<AddProducts />} />
+            <Route path='/product-page' element={<Product />} />
+            <Route path='/vendor' element={<VendorList />} />
+            <Route path='/customer-page' element={<CustomerList />} />
+            <Route path='/inventory' element={<Inventory />} />
+            <Route path='/lpo' element={<LocalPurchaseOrder />} />
+            <Route path='grn' element={<GoodsReceiveNote />} />
+            <Route path='/view-list' element={<ViewList />} />
+            <Route path="/grv-list" element={<ViewList orderType="GRV" />} />
+            <Route path='/grv' element={<GoodsReturnVoucher />} />
+            <Route path='/journal' element={<JournalEntryList />} />
+            <Route path='/accounts' element={<AccountsList />} />
+            <Route path='/charts' element={<ChartOfAccounts />} />
+            <Route path='/reports' element={<Reports />} />
+            {/* <Route path='/t' element={<SaleByDepartment />} />
           <Route path='/tt' element={<SalesByInvoice />} /> */}
-        </Routes>
-      </div>
+          </Routes>
+        </div>
+      </QZTrayProvider>
     </>
   ) : (
     <Navigate to="/login" />

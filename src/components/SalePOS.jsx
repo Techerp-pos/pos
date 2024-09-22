@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+// SalePOS.jsx
+import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentSection from './PaymentSection';
 import SaleHistory from './SaleHistory';
@@ -8,9 +9,11 @@ import Select from 'react-select';
 import qz from 'qz-tray';
 import '../utility/SalePOS.css';
 import { useNavigate } from 'react-router-dom';
+import { QZTrayContext } from '../contexts/QzTrayContext';
 
 function SalePOS() {
     const { currentUser } = useAuth();
+    const { isConnected, availablePrinters } = useContext(QZTrayContext);
     const [departments, setDepartments] = useState([]);
     const [items, setItems] = useState([]);
     const [filteredItems, setFilteredItems] = useState([]);
@@ -22,8 +25,6 @@ function SalePOS() {
     const [showPayment, setShowPayment] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [shopDetails, setShopDetails] = useState(null);
-    const [isConnected, setIsConnected] = useState(false);
-    const [isConnecting, setIsConnecting] = useState(false);
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [loadingItems, setLoadingItems] = useState(true);
     const [loadingShopDetails, setLoadingShopDetails] = useState(true);
@@ -38,10 +39,18 @@ function SalePOS() {
             setLoadingShopDetails(true);
             try {
                 if (currentUser?.shopCode) {
-                    const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
-                    const shopSnapshot = await getDocs(shopQuery);
-                    if (!shopSnapshot.empty) {
-                        setShopDetails(shopSnapshot.docs[0].data());
+                    const shopDetailsQuery = query(
+                        collection(db, 'shopDetails'),
+                        where('shopCode', '==', currentUser.shopCode),
+                        limit(1)
+                    );
+                    const querySnapshot = await getDocs(shopDetailsQuery);
+                    if (!querySnapshot.empty) {
+                        const fetchedShopDetails = querySnapshot.docs[0].data();
+                        console.log("Fetched Shop Details:", fetchedShopDetails); // Debugging line
+                        setShopDetails(fetchedShopDetails);
+                    } else {
+                        console.error("No shop details found for shopCode:", currentUser.shopCode);
                     }
                 }
             } catch (error) {
@@ -52,7 +61,8 @@ function SalePOS() {
         };
 
         fetchShopDetails();
-    }, [currentUser.shopCode]);
+    }, [currentUser?.shopCode]);
+
 
     // Fetch departments when the component mounts
     useEffect(() => {
@@ -108,54 +118,6 @@ function SalePOS() {
         fetchItems();
     }, [currentUser?.shopCode]);
 
-    // Manage QZ Tray connection
-    const connectToQZTray = async () => {
-        if (qz.websocket.isActive()) {
-            console.log("QZ Tray connection already exists");
-            setIsConnected(true); // Update state to reflect the active connection
-            return; // Exit early if already connected
-        }
-
-        try {
-            setIsConnecting(true);
-            await qz.websocket.connect();
-            setIsConnected(true);
-            console.log("Connected to QZ Tray");
-        } catch (err) {
-            if (err.message.includes("An open connection with QZ Tray already exists")) {
-                console.log("Using existing QZ Tray connection.");
-                setIsConnected(true);
-            } else {
-                console.error("Error connecting to QZ Tray:", err);
-                setTimeout(connectToQZTray, 5000); // Retry after 5 seconds if connection fails
-            }
-        } finally {
-            setIsConnecting(false);
-        }
-    };
-
-    const disconnectQZTray = async () => {
-        if (qz.websocket.isActive()) {
-            try {
-                await qz.websocket.disconnect();
-                setIsConnected(false);
-                console.log("Disconnected from QZ Tray");
-            } catch (err) {
-                console.error("Error disconnecting from QZ Tray:", err);
-            }
-        }
-    };
-
-    // Connect QZ Tray on component mount
-    useEffect(() => {
-        connectToQZTray();
-
-        // Clean up the connection when the component unmounts
-        return () => {
-            disconnectQZTray();
-        };
-    }, []);
-
     const handleDepartmentClick = (department) => {
         setSelectedDepartment(department);
         const departmentItems = items.filter(item => item.category === department.name);
@@ -201,7 +163,7 @@ function SalePOS() {
 
     const handleRemoveItem = () => {
         if (selectedItem) {
-            setCart(cart.filter(cartItem => cartItem.id !== selectedItem.id));
+            setCart(cart.filter(cartItem => !(cartItem.id === selectedItem.id && cartItem.unitType === selectedItem.unitType)));
             setSelectedItem(null);
         }
     };
@@ -246,7 +208,10 @@ function SalePOS() {
     };
 
     const handlePayment = async (paymentDetails) => {
-        await connectToQZTray(); // Ensure QZ Tray connection is active
+        if (!isConnected) {
+            alert("QZ Tray is not connected. Please ensure it is running.");
+            return;
+        }
 
         try {
             const orderNumber = await generateOrderNumber();
@@ -292,35 +257,21 @@ function SalePOS() {
             alert("Failed to complete the sale. Please try again.");
         }
     };
-    const detectPrinters = async () => {
-        try {
-            const printers = await qz.printers.getList(); // Detect all printers
-            console.log("Available Printers:", printers);
-            return printers;
-        } catch (err) {
-            console.error("Error detecting printers:", err);
-            return [];
-        }
-    };
-
-    // Fetch printers and set in the state for user to select
-    useEffect(() => {
-        const fetchPrinters = async () => {
-            const printers = await detectPrinters();
-            setAvailablePrinters(printers); // Set printers to state
-            setSelectedPrinter(printers[0]); // Auto-select first printer
-        };
-        fetchPrinters();
-    }, []);
-
 
     const handlePrintReceipt = async (orderNumber, paymentDetails) => {
         if (!isConnected) {
-            await connectToQZTray(); // Ensure the connection is established
+            alert("QZ Tray is not connected. Please ensure it is running.");
+            return;
         }
 
-        // Initialize a new configuration for each print
-        config = qz.configs.create("RONGTA 80mm Series Printer"); // Ensure this matches your printer's name
+        if (!shopDetails?.defaultPrinter) {
+            alert("Default printer not set. Please select a printer in Settings.");
+            Navigate('/settings'); // Redirect to Settings page
+            return;
+        }
+
+        // Initialize a new configuration using the selected default printer
+        const config = qz.configs.create(shopDetails.defaultPrinter);
 
         const data = [
             '\x1B\x40', // Initialize printer
@@ -348,9 +299,9 @@ function SalePOS() {
                 return `${(index + 1).toString().padEnd(3)} ${item.name.padEnd(20)} ${item.quantity.toString().padEnd(4)} ${price.toFixed(3).padEnd(6)} ${amount}\n`;
             }),
             '------------------------------------------------\n', // Full width separator
-            `Total ExTax:               ${cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
-            `VAT 5%:                    ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
-            `Net Total:                 ${(cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
+            `Total ExTax:               ${cart.filter(cartItem => !cartItem.isReturned).reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)} OMR\n`,
+            `VAT 5%:                    ${(cart.filter(cartItem => !cartItem.isReturned).reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 0.05).toFixed(3)} OMR\n`,
+            `Net Total:                 ${(cart.filter(cartItem => !cartItem.isReturned).reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0) * 1.05).toFixed(3)} OMR\n`,
             `Paid:                      ${parseFloat(paymentDetails.amountPaid).toFixed(3)} OMR\n`,
             `Balance:                   ${parseFloat(paymentDetails.balance).toFixed(3)} OMR\n`,
             '------------------------------------------------\n', // Full width separator
@@ -363,7 +314,10 @@ function SalePOS() {
 
         qz.print(config, data).then(() => {
             console.log("Printed successfully");
-        }).catch(err => console.error("Print failed:", err));
+        }).catch(err => {
+            console.error("Print failed:", err);
+            alert("Failed to print the receipt. Please try again.");
+        });
     };
 
     const handleVoidCart = () => {
@@ -378,7 +332,6 @@ function SalePOS() {
     const cancelVoid = () => {
         setShowPopup(false);
     };
-
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -428,8 +381,6 @@ function SalePOS() {
         };
     }, [items, scannedValue]);
 
-
-
     const handleKeypadClick = (value) => {
         if (value === 'Enter') {
             // Check if displayValue matches any product code or name
@@ -458,7 +409,7 @@ function SalePOS() {
             const newQuantity = parseInt(displayValue, 10);
             if (!isNaN(newQuantity) && newQuantity > 0) {
                 setCart(cart.map(cartItem =>
-                    cartItem.id === selectedItem.id
+                    (cartItem.id === selectedItem.id && cartItem.unitType === selectedItem.unitType)
                         ? { ...cartItem, quantity: newQuantity }
                         : cartItem
                 ));
@@ -477,7 +428,7 @@ function SalePOS() {
             const newPrice = parseFloat(displayValue);
             if (!isNaN(newPrice) && newPrice >= 0) {
                 setCart(cart.map(cartItem =>
-                    cartItem.id === selectedItem.id
+                    (cartItem.id === selectedItem.id && cartItem.unitType === selectedItem.unitType)
                         ? { ...cartItem, price: newPrice.toFixed(3) }
                         : cartItem
                 ));
@@ -506,6 +457,15 @@ function SalePOS() {
     const handleClose = () => {
         // window.close(); // Close the window
         Navigate('/pos')
+    };
+
+    const handlePaymentButtonClick = () => {
+        if (!shopDetails?.defaultPrinter) {
+            alert("Default printer not set. Please select a printer in Settings.");
+            Navigate('/settings'); // Redirect to Settings page
+            return;
+        }
+        setShowPayment(true);
     };
 
     return (
@@ -539,7 +499,7 @@ function SalePOS() {
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                                                         <span>{pricingOption.unitType} ({pricingOption.factor})</span>
                                                         <span>{item.name}</span>
-                                                        <span>{parseFloat(pricingOption.cost).toFixed(3)} Omr</span>
+                                                        <span>{parseFloat(pricingOption.cost).toFixed(3)} OMR</span>
                                                     </div>
                                                 ),
                                                 price: pricingOption.price, // Pass along price for later use
@@ -570,9 +530,6 @@ function SalePOS() {
                                                 padding: '10px',
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
-                                                // backgroundColor: state.isSelected ? '#f0f0f0' : 'white',
-                                                // color: state.isSelected ? '#333' : '#000',
-                                                // '&:hover': { backgroundColor: '#e0e0e0' },
                                             }),
                                             singleValue: (provided) => ({
                                                 ...provided,
@@ -586,7 +543,7 @@ function SalePOS() {
                                     <thead>
                                         <tr>
                                             <th>SN</th>
-                                            <th>Item</th>
+                                            <th style={{ width: '150px' }}>Item</th>
                                             <th>UOM</th>
                                             <th>Qty</th>
                                             <th>Price</th>
@@ -598,9 +555,14 @@ function SalePOS() {
                                     <tbody>
                                         {cart.map((cartItem, index) => (
                                             <tr
-                                                key={cartItem.id}
+                                                key={`${cartItem.id}-${cartItem.unitType}`} // Ensure unique key
                                                 onClick={() => setSelectedItem(cartItem)}
-                                                className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                                                className={
+                                                    selectedItem?.id === cartItem.id &&
+                                                        selectedItem.unitType === cartItem.unitType
+                                                        ? 'selected-row'
+                                                        : ''
+                                                }
                                                 style={cartItem.isReturned ? { textDecoration: 'line-through', backgroundColor: '#ff505f' } : {}}
                                             >
                                                 <td>{index + 1}</td>
@@ -683,12 +645,19 @@ function SalePOS() {
                         <button onClick={handleVoidCart}>Void</button>
                         <button onClick={() => setShowHistory(true)}>History</button>
                         <button>Switch</button>
-                        <button onClick={handleRemoveItem} style={{ background: 'red' }}>Remove</button>
+                        <button onClick={handleRemoveItem}
+                            style={{ background: 'red' }}>Remove</button>
                     </div>
                     <button style={{ background: '#ff9800' }}>Customer</button>
-                    <button className="payment-btn"
-                        onClick={() => setShowPayment(true)}
+                    <button
+                        className="payment-btn"
+                        onClick={handlePaymentButtonClick}
                         disabled={cart.filter(cartItem => !cartItem.isReturned).length === 0}
+                        title={
+                            !shopDetails?.defaultPrinter
+                                ? "Default printer not set. Please select a printer in Settings."
+                                : ""
+                        }
                     >
                         Payment
                     </button>
@@ -729,7 +698,7 @@ function SalePOS() {
             )}
 
             {/* Payment Section */}
-            {showPayment && (
+            {showPayment && !loadingShopDetails ? (
                 <PaymentSection
                     total={cart
                         .filter(cartItem => !cartItem.isReturned)
@@ -738,8 +707,11 @@ function SalePOS() {
                     }
                     onClose={() => setShowPayment(false)}
                     onPaymentComplete={handlePayment}
+                    shopDetails={shopDetails} // Pass shopDetails as a prop
                 />
-            )}
+            ) : showPayment ? (
+                <p>Loading shop details...</p>
+            ) : null}
 
             {/* Sale History Section */}
             {showHistory && (
@@ -749,6 +721,7 @@ function SalePOS() {
             )}
         </div>
     );
+
 }
 
 export default SalePOS;
