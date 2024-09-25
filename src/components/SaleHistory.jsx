@@ -1,21 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+// SaleHistory.jsx
+import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import { jsPDF } from 'jspdf';
-import qz from 'qz-tray';
 import '../utility/SaleHistory.css';
 
 function SaleHistory({ onClose, onOpenOrder }) {
     const { currentUser } = useAuth();
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [shopDetails, setShopDetails] = useState(null);
 
     useEffect(() => {
         const salesQuery = query(
             collection(db, 'orders'),
-            where('shopCode', '==', currentUser.shopCode)
+            where('shopCode', '==', currentUser.shopCode),
+            orderBy('timestamp', 'desc')
         );
 
         const unsubscribe = onSnapshot(salesQuery, (snapshot) => {
@@ -33,19 +32,17 @@ function SaleHistory({ onClose, onOpenOrder }) {
         return () => unsubscribe();
     }, [currentUser.shopCode]);
 
-    useEffect(() => {
-        const fetchShopDetails = async () => {
-            if (currentUser?.shopCode) {
-                const shopQuery = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
-                const shopSnapshot = await getDocs(shopQuery);
-                if (!shopSnapshot.empty) {
-                    setShopDetails(shopSnapshot.docs[0].data());
-                }
-            }
-        };
+    // Define handlePrint function
+    const handlePrint = (sale) => {
+        // Implement printing logic here
+        alert(`Printing sale with order number: ${sale.orderNumber}`);
+    };
 
-        fetchShopDetails();
-    }, [currentUser.shopCode]);
+    // Define handleDownload function
+    const handleDownload = (sale) => {
+        // Implement download logic here
+        alert(`Downloading sale with order number: ${sale.orderNumber}`);
+    };
 
     return (
         <div className="sale-history-modal">
@@ -69,17 +66,21 @@ function SaleHistory({ onClose, onOpenOrder }) {
                         {loading ? (
                             <tr><td colSpan="6">Loading...</td></tr>
                         ) : (
-                            sales.map((sale, index) => (
+                            sales.map((sale) => (
                                 <tr key={sale.id}>
                                     <td>{new Date(sale.timestamp?.seconds * 1000).toLocaleDateString()}</td>
-                                    <td>{sale.invoiceNumber || `100${index + 1}`}</td>
+                                    <td>{sale.orderNumber}</td>
                                     <td>{sale.customer || 'N/A'}</td>
                                     <td>{sale.terminal || 'SALE'}</td>
                                     <td>{parseFloat(sale.total).toFixed(3)} OMR</td>
                                     <td>
                                         <button onClick={() => handlePrint(sale)}>Print</button>
                                         <button onClick={() => handleDownload(sale)}>Download</button>
-                                        <button onClick={() => onOpenOrder(sale)}>Open</button>
+                                        {typeof onOpenOrder === 'function' ? (
+                                            <button onClick={() => onOpenOrder(sale)}>Update</button>
+                                        ) : (
+                                            <button disabled>Open</button>
+                                        )}
                                     </td>
                                 </tr>
                             ))

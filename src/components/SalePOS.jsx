@@ -1,7 +1,7 @@
 // SalePOS.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentSection from './PaymentSection';
 import SaleHistory from './SaleHistory';
@@ -10,6 +10,7 @@ import qz from 'qz-tray';
 import '../utility/SalePOS.css';
 import { useNavigate } from 'react-router-dom';
 import { QZTrayContext } from '../contexts/QzTrayContext';
+import { Dialog, DialogTitle, DialogContent, TextField, List, ListItem, ListItemText, Button, Box, Autocomplete } from '@mui/material';
 
 function SalePOS() {
     const { currentUser } = useAuth();
@@ -31,7 +32,77 @@ function SalePOS() {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [scannedValue, setScannedValue] = useState('');
     const Navigate = useNavigate();
+    const [openedOrderId, setOpenedOrderId] = useState(null);
+    const [customers, setCustomers] = useState([]);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false); // For controlling the modal visibility
+    const [searchTerm, setSearchTerm] = useState(''); // For the search input
+    const openCustomerModal = () => {
+        setIsCustomerModalOpen(true);
+    };
+
+    const closeCustomerModal = () => {
+        setIsCustomerModalOpen(false);
+    };
+
+    const handleNewCustomer = () => {
+        // Logic to handle adding a new customer
+        // You can open a new modal or redirect to a new customer form
+        console.log('New customer form opened');
+    };
+
+    const handleSelectCustomer = () => {
+        if (selectedCustomer) {
+            // Logic for selecting a customer and proceeding with that selection
+            console.log('Customer selected:', selectedCustomer);
+            closeCustomerModal();
+        } else {
+            alert('Please select a customer before proceeding.');
+        }
+    };
+
+
+    const handleOpenOrder = async (sale) => {
+        try {
+            // Load sale items into the cart
+            setCart(sale.items || []);
+
+            // Set the currently opened order ID
+            setOpenedOrderId(sale.id);
+
+            // Close the SaleHistory modal
+            setShowHistory(false);
+        } catch (error) {
+            console.error("Failed to load the order: ", error);
+            alert("Failed to load the order. Please try again.");
+        }
+    };
+
     let config;
+
+    // Fetch customers when the component mounts
+    useEffect(() => {
+        const fetchCustomers = async () => {
+            try {
+                const customersQuery = query(collection(db, 'customers'), where('shopCode', '==', currentUser.shopCode)); // Assuming 'customers' is the collection name
+                const customersSnapshot = await getDocs(customersQuery);
+                if (!customersSnapshot.empty) {
+                    const customersList = customersSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setCustomers(customersList);
+                } else {
+                    setCustomers([]); // No data found
+                }
+            } catch (error) {
+                console.error("Failed to fetch customers:", error);
+                setCustomers([]); // Handle error by setting an empty array
+            }
+        };
+
+        fetchCustomers();
+    }, []);
 
     // Fetch shop details when the component mounts
     useEffect(() => {
@@ -214,22 +285,42 @@ function SalePOS() {
         }
 
         try {
-            const orderNumber = await generateOrderNumber();
+            let orderNumber;
+            if (openedOrderId) {
+                // If an existing order is opened, update that order
+                const orderRef = doc(db, 'orders', openedOrderId);
+                await setDoc(orderRef, {
+                    items: cart,
+                    total: cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3),
+                    paymentMethod: paymentDetails.method,
+                    amountPaid: paymentDetails.amountPaid,
+                    balance: paymentDetails.balance,
+                    customer: selectedCustomer?.name || "Walk In", // Include the selected customer
+                    edited: true, // Mark the order as edited
+                    timestamp: serverTimestamp(),
+                }, { merge: true });
 
-            await addDoc(collection(db, 'orders'), {
-                shopCode: currentUser.shopCode,
-                items: cart,
-                total: cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3),
-                paymentMethod: paymentDetails.method,
-                amountPaid: paymentDetails.amountPaid,
-                balance: paymentDetails.balance,
-                timestamp: serverTimestamp(),
-                cashier: currentUser.uid,
-                orderNumber: orderNumber,
-                status: "completed"
-            });
+                orderNumber = openedOrderId; // Use the existing order ID
+            } else {
+                // Generate a new order number if no existing order is opened
+                orderNumber = await generateOrderNumber();
 
-            // Record the returned items separately
+                await addDoc(collection(db, 'orders'), {
+                    shopCode: currentUser.shopCode,
+                    items: cart,
+                    total: cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3),
+                    paymentMethod: paymentDetails.method,
+                    amountPaid: paymentDetails.amountPaid,
+                    balance: paymentDetails.balance,
+                    customer: selectedCustomer?.name || "Walk In", // Include the selected customer
+                    timestamp: serverTimestamp(),
+                    cashier: currentUser.uid,
+                    orderNumber: orderNumber,
+                    status: "completed"
+                });
+            }
+
+            // Record the returned items separately if necessary
             if (cart.some(cartItem => cartItem.isReturned)) {
                 await addDoc(collection(db, 'returns'), {
                     shopCode: currentUser.shopCode,
@@ -250,8 +341,9 @@ function SalePOS() {
 
             alert('Sale completed successfully!');
             await handlePrintReceipt(orderNumber, paymentDetails);
-            setCart([]);
+            setCart([]); // Clear the cart
             setShowPayment(false);
+            setOpenedOrderId(null); // Reset the opened order ID after payment is completed
         } catch (error) {
             console.error("Error completing sale: ", error);
             alert("Failed to complete the sale. Please try again.");
@@ -579,23 +671,33 @@ function SalePOS() {
                                 </table>
                             </div>
                             <div className="sales-summary">
-                                <p>Total: {cart
-                                    .filter(cartItem => !cartItem.isReturned)
-                                    .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
-                                    .toFixed(3)
-                                } &nbsp;OMR</p>
-                                {cart.some(cartItem => cartItem.isReturned) && (
-                                    <p>Returned Items: {cart
-                                        .filter(cartItem => cartItem.isReturned)
+                                <p style={{fontSize: '30px', marginTop: '-10px'}}>Summary</p>
+                                <div>
+                                    <p>No. of items: {cart.length}</p> {/* Total number of unique items */}
+                                    <p>Total Quantity: {cart.reduce((sum, cartItem) => sum + parseInt(cartItem.quantity || 0, 10), 0)}</p> {/* Total quantity */}
+                                </div>
+                                <div>
+                                    <p>Total: {cart
+                                        .filter(cartItem => !cartItem.isReturned)
                                         .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
-                                        .toFixed(3)
-                                    }&nbsp; OMR</p>
-                                )}
-                                <p>Net Total: {cart
-                                    .filter(cartItem => !cartItem.isReturned)
-                                    .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
-                                    .toFixed(3)
-                                } &nbsp;OMR</p>
+                                        .toFixed(3)} &nbsp;OMR
+                                    </p>
+{/* 
+                                    {cart.some(cartItem => cartItem.isReturned) && (
+                                        <p>Returned Items: {cart
+                                            .filter(cartItem => cartItem.isReturned)
+                                            .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                            .toFixed(3)} &nbsp;OMR
+                                        </p>
+                                    )} */}
+
+                                    <p>Net Total: {cart
+                                        .filter(cartItem => !cartItem.isReturned)
+                                        .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                        .toFixed(3)} &nbsp;OMR
+                                    </p>
+                                </div>
+                                
                             </div>
                         </>
                     )}
@@ -646,9 +748,12 @@ function SalePOS() {
                         <button onClick={() => setShowHistory(true)}>History</button>
                         <button>Switch</button>
                         <button onClick={handleRemoveItem}
-                            style={{ background: 'red' }}>Remove</button>
+                            style={{ background: 'red' }}>Remove
+                        </button>
                     </div>
-                    <button style={{ background: '#ff9800' }}>Customer</button>
+                    <button onClick={openCustomerModal} style={{ background: '#ffc816', height: '80px', font: 'Bold' }}>
+                        {selectedCustomer ? `Customer(${selectedCustomer.name})` : 'Customer'}
+                    </button>
                     <button
                         className="payment-btn"
                         onClick={handlePaymentButtonClick}
@@ -717,8 +822,103 @@ function SalePOS() {
             {showHistory && (
                 <SaleHistory
                     onClose={() => setShowHistory(false)}
+                    onOpenOrder={handleOpenOrder} // Pass the function here
                 />
             )}
+
+            {/* Customer Selection Modal using MUI */}
+            <Dialog open={isCustomerModalOpen} onClose={closeCustomerModal} fullWidth maxWidth="sm">
+                <DialogTitle>Customer Lookup</DialogTitle>
+                <DialogContent>
+                    {/* Autocomplete for customer lookup */}
+                    <Autocomplete
+                        options={customers}
+                        getOptionLabel={(customer) => customer.name}
+                        value={selectedCustomer}
+                        onChange={(event, newValue) => {
+                            setSelectedCustomer(newValue); // Set selected customer when selected from dropdown
+                        }}
+                        inputValue={searchTerm}
+                        onInputChange={(event, newInputValue) => {
+                            setSearchTerm(newInputValue); // Update the search term when typing
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Customer Lookup"
+                                variant="outlined"
+                                fullWidth
+                                margin="normal"
+                            />
+                        )}
+                    />
+
+                    {/* Customer Information Fields */}
+                    <TextField
+                        label="Name"
+                        variant="outlined"
+                        fullWidth
+                        margin="normal"
+                        value={selectedCustomer?.name || ''}
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                    />
+
+                    <TextField
+                        label="Contact"
+                        variant="outlined"
+                        fullWidth
+                        margin="normal"
+                        value={selectedCustomer?.mobile || ''}
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                    />
+
+                    <TextField
+                        label="Customer Code"
+                        variant="outlined"
+                        fullWidth
+                        margin="normal"
+                        value={selectedCustomer?.id || ''}
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                    />
+
+                    <Box display="flex" gap={2}>
+                        <TextField
+                            label="Due Amount"
+                            variant="outlined"
+                            fullWidth
+                            margin="normal"
+                            value={selectedCustomer?.dueAmount || ''}
+                            InputProps={{
+                                readOnly: true,
+                            }}
+                        />
+                        <Button variant="contained" color="primary" style={{ marginTop: '16px', height: '56px' }}>
+                            Get Balance
+                        </Button>
+                    </Box>
+
+                    {/* <Button variant="contained" color="primary" fullWidth style={{ marginTop: '16px' }}>
+                        View Report
+                    </Button> */}
+
+                    {/* Action Buttons */}
+                    <Box display="flex" justifyContent="space-between" marginTop={2}>
+                        <Button variant="contained" color="primary" onClick={handleNewCustomer}>
+                            New
+                        </Button>
+                        <Button variant="contained" color="primary" onClick={handleSelectCustomer}>
+                            Select
+                        </Button>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 

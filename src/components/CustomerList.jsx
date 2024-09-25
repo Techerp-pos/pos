@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import AddEditCustomer from './AddEditCustomer';
 import CategoryModal from './CategoryModal';
@@ -29,18 +29,19 @@ const CustomerList = () => {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
 
     useEffect(() => {
-        const fetchCustomers = async () => {
-            let customerQuery;
-            if (isSuperAdmin) {
-                customerQuery = collection(db, 'customers');
-            } else {
-                customerQuery = query(collection(db, 'customers'), where('shopCode', '==', currentUser.shopCode));
-            }
-            const customerSnapshot = await getDocs(customerQuery);
-            setCustomers(customerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        };
+        let customerQuery;
+        if (isSuperAdmin) {
+            customerQuery = collection(db, 'customers');
+        } else {
+            customerQuery = query(collection(db, 'customers'), where('shopCode', '==', currentUser.shopCode));
+        }
 
-        fetchCustomers();
+        const unsubscribe = onSnapshot(customerQuery, (snapshot) => {
+            const customerList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setCustomers(customerList);
+        });
+
+        return () => unsubscribe(); // Clean up the subscription on component unmount
     }, [currentUser, isSuperAdmin]);
 
     const handleEditCustomer = (customer) => {
@@ -82,7 +83,7 @@ const CustomerList = () => {
                                 <CustomTableCell>{customer.id}</CustomTableCell>
                                 <CustomTableCell>{customer.name}</CustomTableCell>
                                 <CustomTableCell>{customer.micr}</CustomTableCell>
-                                <CustomTableCell>{customer.phone}</CustomTableCell>
+                                <CustomTableCell>{customer.mobile}</CustomTableCell>
                                 <CustomTableCell>
                                     <Button
                                         variant="outlined"

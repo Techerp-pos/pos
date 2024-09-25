@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../contexts/AuthContext';
 import Select from 'react-select';
 import { QZTrayContext } from '../contexts/QzTrayContext';
+import '../utility/Settings.css'
 
 function Settings() {
   const { currentUser } = useAuth();

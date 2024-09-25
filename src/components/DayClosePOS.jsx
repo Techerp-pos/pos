@@ -1,28 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
-import { collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, serverTimestamp, addDoc } from 'firebase/firestore';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import '../utility/DayClosePOS.css';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 function DayClosePOS() {
+
+    const navigate = useNavigate()
     const [cashSummary, setCashSummary] = useState({
         currency: "OMR",
         cashOpening: 0.000,
         transactions: 0.000,
         cashInHand: 0.000,
     });
-    const [saleSummary, setSaleSummary] = useState({
-        cash: 0.000,
-        credit: 0.000,
-        adjustedAdvance: 0.000,
-        tax: 0.000,
-        total: 0.000,
-    });
-    const [variance, setVariance] = useState({
+    const [creditSummary, setCreditSummary] = useState({
         currency: "OMR",
-        open: 0.000,
-        transaction: 0.000,
-        close: 0.000,
-        variance: 0.000,
+        totalCredit: 0.000,
     });
 
     useEffect(() => {
@@ -42,8 +38,6 @@ function DayClosePOS() {
             const snapshot = await getDocs(todayQuery);
             let cashTotal = 0.000;
             let creditTotal = 0.000;
-            let taxTotal = 0.000;
-            let grandTotal = 0.000;
 
             snapshot.forEach((doc) => {
                 const order = doc.data();
@@ -52,16 +46,6 @@ function DayClosePOS() {
                 } else if (order.paymentMethod === 'CREDIT') {
                     creditTotal += parseFloat(order.total);
                 }
-                taxTotal += parseFloat(order.tax || 0);
-                grandTotal += parseFloat(order.total);
-            });
-
-            setSaleSummary({
-                cash: cashTotal,
-                credit: creditTotal,
-                adjustedAdvance: 0.000, // Placeholder for advanced payments if applicable
-                tax: taxTotal,
-                total: grandTotal,
             });
 
             setCashSummary(prev => ({
@@ -70,13 +54,10 @@ function DayClosePOS() {
                 cashInHand: prev.cashOpening + cashTotal,
             }));
 
-            setVariance({
-                currency: "OMR",
-                open: 0.000,
-                transaction: cashTotal,
-                close: 0.000,
-                variance: -cashTotal,
-            });
+            setCreditSummary(prev => ({
+                ...prev,
+                totalCredit: creditTotal,
+            }));
         };
 
         fetchDayCloseData();
@@ -84,17 +65,70 @@ function DayClosePOS() {
 
     const handleCloseDay = async () => {
         try {
+            console.log("Cash Summary: ", cashSummary);
+            console.log("Credit Summary: ", creditSummary);
+
+            // Basic validation of required fields
+            if (!cashSummary || !creditSummary) {
+                throw new Error("Missing required cash or credit summary data");
+            }
+
             await addDoc(collection(db, 'dayClose'), {
                 cashSummary,
-                saleSummary,
-                variance,
+                creditSummary,
                 timestamp: serverTimestamp(),
             });
+
             alert("Day closed successfully!");
+
         } catch (error) {
             console.error("Error closing day: ", error);
-            alert("Failed to close the day. Please try again.");
+            alert(`Failed to close the day. Error: ${error.message}`);
         }
+
+        navigate('/pos')
+    };
+
+
+    // Function to download PDF
+    const downloadPDF = () => {
+        const doc = new jsPDF();
+        doc.text('Day Close Summary', 20, 10);
+        doc.autoTable({
+            head: [['Currency', 'Cash Opening', 'Cash Transactions', 'Cash in Hand']],
+            body: [
+                [
+                    cashSummary.currency,
+                    cashSummary.cashOpening.toFixed(2),
+                    cashSummary.transactions.toFixed(2),
+                    cashSummary.cashInHand.toFixed(2),
+                ]
+            ],
+        });
+        doc.autoTable({
+            head: [['Currency', 'Credit Total']],
+            body: [
+                [
+                    creditSummary.currency,
+                    creditSummary.totalCredit.toFixed(2)
+                ]
+            ],
+        });
+        doc.save('DayCloseSummary.pdf');
+    };
+
+    // Function to download Excel
+    const downloadExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet([{
+            Currency: cashSummary.currency,
+            'Cash Opening': cashSummary.cashOpening.toFixed(2),
+            'Cash Transactions': cashSummary.transactions.toFixed(2),
+            'Cash in Hand': cashSummary.cashInHand.toFixed(2),
+            'Credit Total': creditSummary.totalCredit.toFixed(2),
+        }]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Day Close Summary');
+        XLSX.writeFile(workbook, 'DayCloseSummary.xlsx');
     };
 
     return (
@@ -102,98 +136,51 @@ function DayClosePOS() {
             <div className="day-close-content">
                 <h2>Day Close Summary</h2>
 
-                <div className="summary-section">
-                    <div className="cash-summary">
-                        <h3>Cash Summary</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Currency</th>
-                                    <th>Amount</th>
-                                    <th>Ex Rate</th>
-                                    <th>Net Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>{cashSummary.currency}</td>
-                                    <td>{cashSummary.cashOpening.toFixed(2)}</td>
-                                    <td>1.00</td>
-                                    <td>{(cashSummary.cashOpening * 1).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>{cashSummary.currency}</td>
-                                    <td>{cashSummary.transactions.toFixed(2)}</td>
-                                    <td>1.00</td>
-                                    <td>{(cashSummary.transactions * 1).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>{cashSummary.currency}</td>
-                                    <td>{cashSummary.cashInHand.toFixed(2)}</td>
-                                    <td>1.00</td>
-                                    <td>{(cashSummary.cashInHand * 1).toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="sale-summary">
-                        <h3>Sale Summary</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Pay Code</th>
-                                    <th>Net Sales</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>CASH</td>
-                                    <td>{saleSummary.cash.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>CREDIT</td>
-                                    <td>{saleSummary.credit.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>Advance(Adjusted)</td>
-                                    <td>{saleSummary.adjustedAdvance.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>TAX</td>
-                                    <td>{saleSummary.tax.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td>Total</td>
-                                    <td>{saleSummary.total.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="variance-summary">
-                    <h3>Variance</h3>
+                {/* Cash Summary Card */}
+                <div className="cash-summary">
+                    <h3>Cash Summary</h3>
                     <table>
                         <thead>
                             <tr>
                                 <th>Currency</th>
-                                <th>Open</th>
-                                <th>Transaction</th>
-                                <th>Close</th>
-                                <th>Variance</th>
+                                <th>Cash Opening</th>
+                                <th>Cash Transactions</th>
+                                <th>Cash in Hand</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>{variance.currency}</td>
-                                <td>{variance.open.toFixed(2)}</td>
-                                <td>{variance.transaction.toFixed(2)}</td>
-                                <td>{variance.close.toFixed(2)}</td>
-                                <td>{variance.variance.toFixed(2)}</td>
+                                <td>{cashSummary.currency}</td>
+                                <td>{cashSummary.cashOpening.toFixed(2)}</td>
+                                <td>{cashSummary.transactions.toFixed(2)}</td>
+                                <td>{cashSummary.cashInHand.toFixed(2)}</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                {/* Credit Summary Card */}
+                <div className="credit-summary">
+                    <h3>Credit Summary</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Currency</th>
+                                <th>Credit Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{creditSummary.currency}</td>
+                                <td>{creditSummary.totalCredit.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="download-buttons">
+                    <button onClick={downloadPDF} className="download-button">Download PDF</button>
+                    <button onClick={downloadExcel} className="download-button">Download Excel</button>
                 </div>
 
                 <button onClick={handleCloseDay} className="close-day-button">Close Day</button>

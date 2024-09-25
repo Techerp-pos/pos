@@ -127,6 +127,7 @@ const AddEditCustomer = ({ customer, onSave, onClose }) => {
                         name="mobile"
                         value={customerData.mobile}
                         onChange={handleChange}
+                        required
                     />
                 </Grid>
                 <Grid item xs={6}>
@@ -256,7 +257,7 @@ const AddEditCustomer = ({ customer, onSave, onClose }) => {
                     </FormControl>
                 </Grid>
             </Grid>
-            <Box mt={3} display="flex" justifyContent="space-between">
+            <Box mt={3} display="flex" justifyContent="space-between" gap="10px">
                 <Button variant="contained" color="primary" type="submit">
                     Save Customer
                 </Button>

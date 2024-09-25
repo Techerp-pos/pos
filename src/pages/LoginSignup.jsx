@@ -1,9 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Form, Input, Button, message } from 'antd';
-import { UserOutlined, LockOutlined, ShopOutlined } from '@ant-design/icons';
+import { Button, TextField, Container, Box, Typography, CircularProgress, Grid } from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useNavigate } from 'react-router-dom';
-import '../utility/login.css'
+import '../utility/login.css';
 
 function LoginSignup() {
     const { login } = useAuth();
@@ -23,13 +23,19 @@ function LoginSignup() {
         };
     }, []);
 
-    const handleLoginSubmit = async (values) => {
+    const handleLoginSubmit = async (event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const email = data.get('email');
+        const password = data.get('password');
+        const shopCode = data.get('shopCode');
+
         setLoading(true);
         try {
-            await login(values.email, values.password, values.shopCode);
+            await login(email, password, shopCode);
             navigate('/dashboard');
         } catch (error) {
-            message.error(error.message);
+            alert(error.message);
             setLoading(false);
         }
     };
@@ -39,62 +45,92 @@ function LoginSignup() {
 
     if (isTablet && (orientation !== 90 && orientation !== -90)) {
         return (
-            <div className="orientation-warning">
-                <p>Please rotate your device to landscape mode.</p>
-            </div>
+            <Box className="orientation-warning" textAlign="center" mt={5}>
+                <Typography variant="h6">Please rotate your device to landscape mode.</Typography>
+            </Box>
         );
     }
 
     return (
-        <div className='Login'>
-            <div className='Login-container'>
-                <div className='Login-image-container'>
-                    <h1>TechERP V0.1</h1>
-                    <img src='./images/img-1.png' className='Login-image' alt="Login" />
-                </div>
-                <div className='Login-form-container'>
-                    {loading ? (
-                        <img src="./images/login.gif" alt="Loading..." className="loading-gif" />
-                    ) : (
-                        <Form
-                            name="login_form"
-                            className="login-form"
-                            initialValues={{ remember: true }}
-                            onFinish={handleLoginSubmit}
-                        >
-                            <div>
-                                <Form.Item
-                                    name="email"
-                                    rules={[{ required: true, message: 'Please input your Email!' }]}
-                                >
-                                    <Input prefix={<UserOutlined />} placeholder="Email" />
-                                </Form.Item>
-                                <Form.Item
-                                    name="password"
-                                    rules={[{ required: true, message: 'Please input your Password!' }]}
-                                >
-                                    <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-                                </Form.Item>
-                                <Form.Item
-                                    name="shopCode"
-                                    rules={[{ required: true, message: 'Please input your Shop Code!' }]}
-                                >
-                                    <Input prefix={<ShopOutlined />} placeholder="Shop Code" />
-                                </Form.Item>
-                            </div>
-                            <div>
-                                <Form.Item>
-                                    <Button type="primary" htmlType="submit" className="login-form-button">
-                                        Log in
-                                    </Button>
-                                </Form.Item>
-                            </div>
+        <Grid container className="login-container">
+            {/* Left Section */}
+            <Grid item xs={12} md={7} className="login-left">
+                <Box className="login-header">
+                    {/* Centered Logo */}
+                    <Box textAlign="center" mb={2}>
+                        <img src="/images/pos.png" alt="POS Logo" className="pos-logo" />
+                    </Box>
+                    <Typography variant="h6" component="h1" gutterBottom>
+                        TechErp
+                    </Typography>
+                    <Typography variant="h5">Web Based POS System</Typography>
+                    <Typography variant="subtitle1">VERSION : v1.0.14</Typography>
+                </Box>
+            </Grid>
 
-                        </Form>
+            {/* Right Section */}
+            <Grid item xs={12} md={5} className="login-right">
+                <Container maxWidth="xs" className="login-form-container">
+                    <Box className="login-form-header" textAlign="center" mb={3}>
+                        <LockOutlinedIcon style={{ fontSize: 40, color: '#7d1b7e' }} />
+                        <Typography variant="h5" gutterBottom>
+                            Sign In
+                        </Typography>
+                    </Box>
+
+                    {loading ? (
+                        <Box textAlign="center">
+                            <CircularProgress />
+                        </Box>
+                    ) : (
+                        <Box component="form" onSubmit={handleLoginSubmit} noValidate>
+                            <TextField
+                                variant="outlined"
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="shopCode"
+                                label="Shop Code"
+                                name="shopCode"
+                                autoComplete="shopCode"
+                                autoFocus
+                            />
+                            <TextField
+                                variant="outlined"
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="email"
+                                label="User Name"
+                                name="email"
+                                autoComplete="email"
+                            />
+                            <TextField
+                                variant="outlined"
+                                margin="normal"
+                                required
+                                fullWidth
+                                name="password"
+                                label="Password"
+                                type="password"
+                                id="password"
+                                autoComplete="current-password"
+                            />
+                            <Button
+                                type="submit"
+                                fullWidth
+                                variant="contained"
+                                color="primary"
+                                className="login-form-button"
+                                disabled={loading}
+                            >
+                                {loading ? <CircularProgress size={24} /> : 'SIGN IN'}
+                            </Button>
+                        </Box>
                     )}
-                </div>
-            </div>
-        </div>
+                </Container>
+            </Grid>
+        </Grid>
     );
 }
 
