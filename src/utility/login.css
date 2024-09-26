@@ -45,3 +45,8 @@
 .login-form-button {
     margin-top: 2rem;
 }
+
+.css-urj5pv-MuiGrid-root{
+    display: flex !important;
+    align-items: center !important;
+}

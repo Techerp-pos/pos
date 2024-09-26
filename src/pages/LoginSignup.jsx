@@ -61,9 +61,9 @@ function LoginSignup() {
                         <img src="/images/pos.png" alt="POS Logo" className="pos-logo" />
                     </Box>
                     <Typography variant="h6" component="h1" gutterBottom>
-                        TechErp
+                        FluxPoint
                     </Typography>
-                    <Typography variant="h5">Web Based POS System</Typography>
+                    <Typography variant="h5">POS System</Typography>
                     <Typography variant="subtitle1">VERSION : v1.0.14</Typography>
                 </Box>
             </Grid>

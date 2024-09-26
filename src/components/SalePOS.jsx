@@ -560,6 +560,7 @@ function SalePOS() {
         setShowPayment(true);
     };
 
+    
     return (
         <div className="sale-pos">
             <div className="top-bar">
@@ -671,18 +672,19 @@ function SalePOS() {
                                 </table>
                             </div>
                             <div className="sales-summary">
-                                <p style={{fontSize: '30px', marginTop: '-10px'}}>Summary</p>
-                                <div>
-                                    <p>No. of items: {cart.length}</p> {/* Total number of unique items */}
-                                    <p>Total Quantity: {cart.reduce((sum, cartItem) => sum + parseInt(cartItem.quantity || 0, 10), 0)}</p> {/* Total quantity */}
-                                </div>
-                                <div>
-                                    <p>Total: {cart
-                                        .filter(cartItem => !cartItem.isReturned)
-                                        .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
-                                        .toFixed(3)} &nbsp;OMR
-                                    </p>
-{/* 
+                                <p style={{ fontSize: '30px', marginTop: '-10px', textAlign: 'justify' }}>Summary</p>
+                                <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                    <div>
+                                        <p>No. of items: {cart.length}</p> {/* Total number of unique items */}
+                                        <p>Total Quantity: {cart.reduce((sum, cartItem) => sum + parseInt(cartItem.quantity || 0, 10), 0)}</p> {/* Total quantity */}
+                                    </div>
+                                    <div>
+                                        <p>Total: {cart
+                                            .filter(cartItem => !cartItem.isReturned)
+                                            .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                            .toFixed(3)} &nbsp;OMR
+                                        </p>
+                                        {/* 
                                     {cart.some(cartItem => cartItem.isReturned) && (
                                         <p>Returned Items: {cart
                                             .filter(cartItem => cartItem.isReturned)
@@ -691,13 +693,16 @@ function SalePOS() {
                                         </p>
                                     )} */}
 
-                                    <p>Net Total: {cart
-                                        .filter(cartItem => !cartItem.isReturned)
-                                        .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
-                                        .toFixed(3)} &nbsp;OMR
-                                    </p>
+                                        <p>Net Total: {cart
+                                            .filter(cartItem => !cartItem.isReturned)
+                                            .reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0)
+                                            .toFixed(3)} &nbsp;OMR
+                                        </p>
+                                    </div>
+
+
                                 </div>
-                                
+
                             </div>
                         </>
                     )}
