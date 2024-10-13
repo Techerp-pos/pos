@@ -142,6 +142,10 @@ function Header() {
       path: '/reports',
       icon: <Assessment />,
     },
+    {
+      label: 'settings',
+      path:'/settings'
+    }
   ];
 
   return (
