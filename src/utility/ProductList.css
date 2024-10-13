@@ -38,5 +38,6 @@
 /* Override the padding for the Ant Design table cells */
 .ant-table-cell {
     padding: 5px !important;
+    display: flex;
 }
 

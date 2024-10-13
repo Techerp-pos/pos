@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, Button, Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Modal, Box, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { TextField, Button, Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Modal, Box, Typography, FormControl, InputLabel, Select, MenuItem, Snackbar } from '@mui/material';
 import moment from 'moment';
 import { db } from '../config/firebase';
-import { collection, query, onSnapshot, doc, writeBatch, setDoc, getDocs, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, writeBatch, setDoc, getDocs, where, deleteDoc } from 'firebase/firestore';
+import { Alert } from '@mui/material';
+import '../utility/CustomerReceipt.css';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 function CustomerReceipt() {
     const [transactions, setTransactions] = useState([]);
@@ -20,6 +24,15 @@ function CustomerReceipt() {
     const [voucherNumber, setVoucherNumber] = useState('AUTO');
     const [account, setAccount] = useState('');
     const [cashPaid, setCashPaid] = useState(false);
+    // Add these to your state declarations
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+
+    // Function to handle showing the snackbar
+    const handleSnackbarClose = () => {
+        setSnackbarOpen(false);
+    };
 
     // Fetch all customer transactions
     useEffect(() => {
@@ -84,13 +97,16 @@ function CustomerReceipt() {
 
     const recalculateFooterTotals = (ordersList) => {
         const totalToReceive = ordersList.reduce((sum, order) => sum + (parseFloat(order.total || 0)), 0);
-        const totalPaid = ordersList.reduce((sum, order) => sum + (parseFloat(order.paid || 0)), 0);
-        const totalBalance = totalToReceive - totalPaid - parseFloat(discount || 0);
-
         setTotalToReceive(totalToReceive);
+
+        const totalPaid = totalToReceive.toFixed(3);
         setPaid(totalPaid);
-        setBalance(totalBalance);
+
+        // Calculate total balance
+        const totalBalance = totalToReceive - totalPaid - parseFloat(discount || 0);
+        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
     };
+
 
     const handleSaveReceipt = async () => {
         try {
@@ -125,6 +141,16 @@ function CustomerReceipt() {
             });
             await batch.commit();
 
+            // Reset all states after saving
+            setSelectedCustomer(null);
+            setPaid(0);
+            setDiscount(0);
+            setSelectedOrders([]);
+            setTransactionDate(moment()); // Reset date to current
+            setVoucherNumber('AUTO');
+            setAccount('');
+            setBalance(0);
+
             closeModal();
         } catch (error) {
             console.error("Error saving receipt:", error);
@@ -148,8 +174,8 @@ function CustomerReceipt() {
 
     const closeModal = () => {
         setSelectedCustomer(null);
-        setTotalToReceive(0);
         setPaid(0);
+        setDiscount(0);
         setSelectedOrders([]);
         setIsModalOpen(false);
     };
@@ -188,20 +214,60 @@ function CustomerReceipt() {
 
     const handlePaidChange = (value) => {
         const receivedAmount = parseFloat(value) || 0;
-        const totalBalance = totalToReceive - receivedAmount - parseFloat(discount || 0);
         setPaid(receivedAmount);
-        setBalance(totalBalance);
+
+        // Calculate total balance
+        const totalBalance = totalToReceive - receivedAmount - parseFloat(discount || 0);
+        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
     };
+
 
     const handleDiscountChange = (value) => {
         const discountAmount = parseFloat(value) || 0;
-        const totalBalance = totalToReceive - paid - discountAmount;
         setDiscount(discountAmount);
-        setBalance(totalBalance);
+
+        // Calculate total balance
+        const totalBalance = totalToReceive - paid - discountAmount;
+        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
+    };
+
+
+
+    // Function to handle deleting a voucher
+    // Updated handleDeleteVoucher function to use Snackbar instead of alert
+    const handleDeleteVoucher = async (transaction) => {
+        if (window.confirm('Are you sure you want to delete this voucher and revoke changes?')) {
+            try {
+                await deleteDoc(doc(db, 'customerReceipts', transaction.id));
+
+                const batch = writeBatch(db);
+
+                transaction.paidOrderDetails.forEach((order) => {
+                    const orderRef = doc(db, 'orders', order.orderId);
+                    batch.update(orderRef, {
+                        cashPaid: false,
+                        CashReceipt: 0,
+                        balance: parseFloat(order.total) - parseFloat(order.paid)
+                    });
+                });
+
+                await batch.commit();
+
+                // Show success snackbar
+                setSnackbarMessage('Voucher and related orders successfully deleted and reverted.');
+                setSnackbarSeverity('success');
+                setSnackbarOpen(true);
+            } catch (error) {
+                // Show error snackbar
+                setSnackbarMessage('Error deleting voucher.');
+                setSnackbarSeverity('error');
+                setSnackbarOpen(true);
+            }
+        }
     };
 
     return (
-        <div style={{padding: '20px'}}>
+        <div style={{ padding: '20px' }}>
             <Typography variant="h4" gutterBottom>Customer Transaction List</Typography>
             <Box display="flex" justifyContent="space-between" mb={3}>
                 <TextField
@@ -241,20 +307,37 @@ function CustomerReceipt() {
                             <TableCell>{transaction.paid?.toFixed(3) || 0.000} OMR</TableCell>
                             <TableCell>{transaction.balance?.toFixed(3) || 0.000} OMR</TableCell>
                             <TableCell>
-                                {/* Print Button */}
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={() => handlePrintReceipt(transaction)}
-                                >
-                                    Print
-                                </Button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {/* Print Button */}
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        onClick={() => handlePrintReceipt(transaction)}
+                                    >
+                                        Print
+                                    </Button>
+                                    <Button
+                                        variant="contained"
+                                        color="secondary"
+                                        onClick={() => handleDeleteVoucher(transaction)}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
-
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={handleSnackbarClose}
+            >
+                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
             <Modal open={isModalOpen} onClose={closeModal}>
                 <Box sx={{ width: 900, padding: 3, backgroundColor: 'white', margin: '100px auto' }}>
                     <Typography variant="h6">Customer Cash Voucher</Typography>
@@ -287,50 +370,51 @@ function CustomerReceipt() {
                         </Select>
                     </FormControl>
 
-                    <Table sx={{ marginTop: 3 }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Select</TableCell>
-                                <TableCell>Invoice Number</TableCell>
-                                <TableCell>Date</TableCell>
-                                <TableCell>Type</TableCell>
-                                <TableCell>Total</TableCell>
-                            </TableRow>
-                        </TableHead>
-
-                        <TableBody>
-                            {orders.map(order => (
-                                <TableRow key={order.id}>
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={selectedOrders.some(o => o.id === order.id)}
-                                            onChange={(e) => handleOrderSelection(order, e.target.checked)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{order.orderNumber}</TableCell>
-                                    <TableCell>{order.timestamp.toDate().toISOString().split('T')[0]}</TableCell>
-                                    <TableCell>{order.paymentMethod}</TableCell>
-                                    <TableCell>{order.total || 'Unable to Fetch'}</TableCell>
+                    {/* Add a scrollable table inside the modal */}
+                    <Box sx={{ maxHeight: '300px', overflowY: 'scroll', mt: 3 }}>
+                        <Table stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Select</TableCell>
+                                    <TableCell>Invoice Number</TableCell>
+                                    <TableCell>Date</TableCell>
+                                    <TableCell>Type</TableCell>
+                                    <TableCell>Total</TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHead>
+                            <TableBody>
+                                {orders.map(order => (
+                                    <TableRow key={order.id}>
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={selectedOrders.some(o => o.id === order.id)}
+                                                onChange={(e) => handleOrderSelection(order, e.target.checked)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>{order.orderNumber}</TableCell>
+                                        <TableCell>{order.timestamp.toDate().toISOString().split('T')[0]}</TableCell>
+                                        <TableCell>{order.paymentMethod}</TableCell>
+                                        <TableCell>{order.total || 'Unable to Fetch'}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Box>
 
                     <Box display="flex" gap={2} mt={2}>
-                        <TextField label="To Receive" value={totalToReceive.toFixed(3)} fullWidth readOnly />
+                        <TextField label="To Receive" value={totalToReceive?.toFixed(3)} fullWidth readOnly/>
                         <TextField
                             label="Discount"
                             value={discount}
-                            onChange={(e) => handleDiscountChange(e.target.value)} // Add onChange handler
+                            onChange={(e) => handleDiscountChange(e.target.value)}
                             fullWidth
                         />
                         <TextField
                             label="Received"
                             value={paid}
-                            onChange={(e) => handlePaidChange(e.target.value)} // Add onChange handler
+                            onChange={(e) => handlePaidChange(e.target.value)}
                             fullWidth
                         />
-
                         <TextField label="Balance" value={balance.toFixed(3)} fullWidth readOnly />
                     </Box>
 
@@ -340,6 +424,7 @@ function CustomerReceipt() {
                     </Box>
                 </Box>
             </Modal>
+
         </div>
     );
 }

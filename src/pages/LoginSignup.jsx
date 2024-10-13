@@ -43,13 +43,13 @@ function LoginSignup() {
     // Check if the device is a tablet
     const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
 
-    if (isTablet && (orientation !== 90 && orientation !== -90)) {
-        return (
-            <Box className="orientation-warning" textAlign="center" mt={5}>
-                <Typography variant="h6">Please rotate your device to landscape mode.</Typography>
-            </Box>
-        );
-    }
+    // if (isTablet && (orientation !== 90 && orientation !== -90)) {
+    //     return (
+    //         <Box className="orientation-warning" textAlign="center" mt={5}>
+    //             <Typography variant="h6">Please rotate your device to landscape mode.</Typography>
+    //         </Box>
+    //     );
+    // }
 
     return (
         <Grid container className="login-container">
@@ -61,7 +61,7 @@ function LoginSignup() {
                         <img src="/images/pos.png" alt="POS Logo" className="pos-logo" />
                     </Box>
                     <Typography variant="h6" component="h1" gutterBottom>
-                        FluxPoint
+                        PayPoint
                     </Typography>
                     <Typography variant="h5">POS System</Typography>
                     <Typography variant="subtitle1">VERSION : v1.0.14</Typography>

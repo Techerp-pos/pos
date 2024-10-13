@@ -1,5 +1,3 @@
-// CategoryList.jsx
-
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../config/firebase'; // Ensure 'auth' is exported from your firebase config
 import {
@@ -32,8 +30,9 @@ import {
     Snackbar,
     Alert,
     styled,
+    TextField, // Add TextField for search
 } from '@mui/material';
-import { Delete, Edit, Add } from '@mui/icons-material';
+import { Delete, Edit, Add, Search } from '@mui/icons-material'; // Add Search icon
 
 // Custom styled TableCell with 5px padding
 const CustomTableCell = styled(TableCell)(({ theme }) => ({
@@ -42,6 +41,7 @@ const CustomTableCell = styled(TableCell)(({ theme }) => ({
 
 const CategoryList = () => {
     const [categories, setCategories] = useState([]);
+    const [filteredCategories, setFilteredCategories] = useState([]); // State for filtered categories
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [shopCode, setShopCode] = useState(null);
@@ -50,6 +50,8 @@ const CategoryList = () => {
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+    const [searchTerm, setSearchTerm] = useState(''); // State for search term
+    const [isSearchVisible, setIsSearchVisible] = useState(true); // Toggle for showing search
 
     // Fetch the current user's shopCode
     useEffect(() => {
@@ -92,6 +94,7 @@ const CategoryList = () => {
                 ...doc.data(),
             }));
             setCategories(fetchedCategories);
+            setFilteredCategories(fetchedCategories); // Initialize filtered categories
         }, (error) => {
             console.error("Error fetching categories:", error);
         });
@@ -102,9 +105,25 @@ const CategoryList = () => {
         };
     }, [shopCode]);
 
+    // Handle search input changes
+    const handleSearch = (event) => {
+        const value = event.target.value.toLowerCase();
+        setSearchTerm(value);
+        // Filter categories based on search term (e.g., match category name or description)
+        const filtered = categories.filter((category) =>
+            category.name.toLowerCase().includes(value) ||
+            category.description.toLowerCase().includes(value)
+        );
+        setFilteredCategories(filtered);
+    };
+
+    // Toggle search input visibility
+    const toggleSearchInput = () => {
+        setIsSearchVisible(!isSearchVisible);
+    };
+
     // Handle opening the edit modal
     const handleEditCategory = (category) => {
-        console.log("Editing category:", category); // Debugging line
         setSelectedCategory(category);
         setIsModalOpen(true);
     };
@@ -146,9 +165,9 @@ const CategoryList = () => {
 
     // Columns for the table
     const columns = [
-        { label: 'Name', key: 'name' },
-        { label: 'Description', key: 'description' },
-        { label: 'Actions', key: 'actions' },
+        { label: 'Name', key: 'name', width: '30%' },
+        { label: 'Description', key: 'description', width: '30%' },
+        { label: 'Actions', key: 'actions', width: '10%' },
     ];
 
     return (
@@ -165,17 +184,42 @@ const CategoryList = () => {
                 <Typography variant="h6" component="h4">
                     Category List
                 </Typography>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<Add />}
-                    onClick={() => {
-                        setSelectedCategory(null);
-                        setIsModalOpen(true);
-                    }}
-                >
-                    Add Category
-                </Button>
+                {isSearchVisible && (
+                    <TextField
+                        label="Search Categories"
+                        variant="outlined"
+                        fullWidth
+                        margin="normal"
+                        value={searchTerm}
+                        onChange={handleSearch}
+                        placeholder="Search by name or description"
+                        style={{
+                            width: '50vw'
+                        }}
+                    />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Add />}
+                        onClick={() => {
+                            setSelectedCategory(null);
+                            setIsModalOpen(true);
+                        }}
+                    >
+                        Add Category
+                    </Button>
+
+                    {/* Add Search Icon Button */}
+                    <IconButton
+                        color="primary"
+                        onClick={toggleSearchInput}
+                        style={{ marginLeft: '8px' }}
+                    >
+                        <Search />
+                    </IconButton>
+                </div>
             </Box>
 
             {/* Categories Table */}
@@ -184,7 +228,7 @@ const CategoryList = () => {
                     <TableHead>
                         <TableRow>
                             {columns.map((column) => (
-                                <CustomTableCell key={column.key}>
+                                <CustomTableCell key={column.key} style={{ width: column.width }}>
                                     <Typography variant="subtitle1" fontWeight="bold">
                                         {column.label}
                                     </Typography>
@@ -193,8 +237,12 @@ const CategoryList = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {categories.map((category) => (
-                            <TableRow key={category.id} hover>
+                        {filteredCategories.map((category, index) => (
+                            <TableRow key={category.id} hover
+                            sx={{
+                                backgroundColor: index % 2 === 1 ? '#f7f7f7' : 'inherit',
+                            }}
+                            >
                                 <CustomTableCell>{category.name}</CustomTableCell>
                                 <CustomTableCell>{category.description}</CustomTableCell>
                                 <CustomTableCell>
@@ -215,7 +263,7 @@ const CategoryList = () => {
                                 </CustomTableCell>
                             </TableRow>
                         ))}
-                        {categories.length === 0 && (
+                        {filteredCategories.length === 0 && (
                             <TableRow>
                                 <CustomTableCell colSpan={3} align="center">
                                     No categories found.

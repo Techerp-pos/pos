@@ -1413,3 +1413,11 @@ h6 {
     background-color: #2ecc71;
     color: white;
 }
+
+.css-epraq0-MuiTableCell-root{
+    padding: 0px 2px !important
+}
+
+.css-1jk99ih-MuiInputBase-input-MuiOutlinedInput-input{
+    padding: 5px !important;
+}

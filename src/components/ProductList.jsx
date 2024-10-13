@@ -21,8 +21,9 @@ import {
     styled,
     Snackbar,
     Alert,
+    TextField, // Add TextField for the search input
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, Delete, Search } from '@mui/icons-material'; // Add Search icon
 import '../utility/ProductList.css';
 
 const CustomTableCell = styled(TableCell)(({ theme }) => ({
@@ -32,6 +33,9 @@ const CustomTableCell = styled(TableCell)(({ theme }) => ({
 const ProductList = () => {
     const { currentUser, isSuperAdmin } = useAuth();
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]); // State for filtered products
+    const [searchTerm, setSearchTerm] = useState(''); // State for search term
+    const [isSearchVisible, setIsSearchVisible] = useState(true); // State for toggling search input
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -54,7 +58,9 @@ const ProductList = () => {
                 );
             }
             unsubscribe = onSnapshot(productQuery, (snapshot) => {
-                setProducts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+                const fetchedProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+                setProducts(fetchedProducts);
+                setFilteredProducts(fetchedProducts); // Initialize filtered products
             });
         };
 
@@ -68,6 +74,19 @@ const ProductList = () => {
             }
         };
     }, [currentUser, isSuperAdmin]);
+
+    // Handle search input changes
+    const handleSearch = (event) => {
+        const value = event.target.value.toLowerCase();
+        setSearchTerm(value);
+        // Filter products based on search term (e.g., match product name, code, or barcode)
+        const filtered = products.filter((product) =>
+            product.name.toLowerCase().includes(value) ||
+            product.code.toLowerCase().includes(value) ||
+            product.barcode.toLowerCase().includes(value)
+        );
+        setFilteredProducts(filtered);
+    };
 
     const handleEditProduct = (product) => {
         setSelectedProduct(product);
@@ -105,13 +124,17 @@ const ProductList = () => {
         setSnackbarOpen(false);
     };
 
+    const toggleSearchInput = () => {
+        setIsSearchVisible(!isSearchVisible); // Toggle the visibility of the search input
+    };
+
     const columns = [
         { label: 'Code', key: 'code', width: '10%' },
-        { label: 'Name', key: 'name', width: '20%' },
+        { label: 'Name', key: 'name', width: '30%' },
         { label: 'Department', key: 'department', width: '15%' },
-        { label: 'Vendor', key: 'vendor', width: '15%' },
+        { label: 'Vendor', key: 'vendor', width: '10%' },
         { label: 'Price', key: 'price', width: '10%' },
-        { label: 'Barcode', key: 'barcode', width: '20%' },
+        { label: 'Barcode', key: 'barcode', width: '15%' },
         { label: 'Actions', key: 'actions', width: '10%' },
     ];
 
@@ -119,16 +142,41 @@ const ProductList = () => {
         <div className="product-list-container">
             <div className="product-list-header">
                 <Typography variant="h5">Product List</Typography>
-                <IconButton
-                    color="primary"
-                    onClick={() => {
-                        setSelectedProduct(null);
-                        setIsModalOpen(true);
-                    }}
-                    style={{ marginTop: '0px' }}
-                >
-                    <Add />
-                </IconButton>
+                {/* Show Search Input only when Search Button is clicked */}
+                {isSearchVisible && (
+                    <TextField
+                        label="Search Products"
+                        variant="outlined"
+                        fullWidth
+                        margin="normal"
+                        value={searchTerm}
+                        onChange={handleSearch}
+                        placeholder="Search by name, code, or barcode"
+                        style={{
+                            width: '50vw'
+                        }}
+                    />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <IconButton
+                        color="primary"
+                        onClick={() => {
+                            setSelectedProduct(null);
+                            setIsModalOpen(true);
+                        }}
+                    >
+                        <Add />
+                    </IconButton>
+
+                    {/* Add Search Icon Button */}
+                    <IconButton
+                        color="primary"
+                        onClick={toggleSearchInput}
+                        style={{ marginLeft: '8px' }}
+                    >
+                        <Search />
+                    </IconButton>
+                </div>
             </div>
 
             <TableContainer component={Paper}>
@@ -143,34 +191,50 @@ const ProductList = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {products.map((product) => (
-                            <TableRow key={product.id}>
-                                <CustomTableCell>{product.code}</CustomTableCell>
-                                <CustomTableCell>{product.name}</CustomTableCell>
-                                <CustomTableCell>{product.department}</CustomTableCell>
-                                <CustomTableCell>{product.vendor}</CustomTableCell>
-                                <CustomTableCell>
-                                    {product.pricing && product.pricing.length > 0
-                                        ? parseFloat(product.pricing[0].price).toFixed(3)
-                                        : 'N/A'}
-                                </CustomTableCell>
-                                <CustomTableCell>{product.barcode}</CustomTableCell>
-                                <CustomTableCell>
-                                    <IconButton
-                                        color="primary"
-                                        onClick={() => handleEditProduct(product)}
-                                    >
-                                        <Edit />
-                                    </IconButton>
-                                    <IconButton
-                                        color="secondary"
-                                        onClick={() => openDeleteDialog(product)}
-                                    >
-                                        <Delete />
-                                    </IconButton>
+                        {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product, index) => (
+                                <TableRow
+                                    key={product.id}
+                                    hover
+                                    sx={{
+                                        backgroundColor: index % 2 === 1 ? '#f9f9f9' : 'inherit', // Apply grey to odd rows
+                                    }}
+                                >
+                                    <CustomTableCell>{product.code}</CustomTableCell>
+                                    <CustomTableCell>{product.name}</CustomTableCell>
+                                    <CustomTableCell>{product.department}</CustomTableCell>
+                                    <CustomTableCell>{product.vendor}</CustomTableCell>
+                                    <CustomTableCell>
+                                        {product.pricing && product.pricing.length > 0
+                                            ? parseFloat(product.pricing[0].price).toFixed(3)
+                                            : 'N/A'}
+                                    </CustomTableCell>
+                                    <CustomTableCell>{product.barcode}</CustomTableCell>
+                                    <CustomTableCell>
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => handleEditProduct(product)}
+                                        >
+                                            <Edit />
+                                        </IconButton>
+                                        <IconButton
+                                            color="secondary"
+                                            onClick={() => openDeleteDialog(product)}
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </CustomTableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <CustomTableCell colSpan={7}>
+                                    <Typography variant="body1" align="center">
+                                        No products found.
+                                    </Typography>
                                 </CustomTableCell>
                             </TableRow>
-                        ))}
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>

@@ -560,7 +560,7 @@ function SalePOS() {
         setShowPayment(true);
     };
 
-    
+
     return (
         <div className="sale-pos">
             <div className="top-bar">
@@ -673,7 +673,7 @@ function SalePOS() {
                             </div>
                             <div className="sales-summary">
                                 <p style={{ fontSize: '30px', marginTop: '-10px', textAlign: 'justify' }}>Summary</p>
-                                <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <div>
                                         <p>No. of items: {cart.length}</p> {/* Total number of unique items */}
                                         <p>Total Quantity: {cart.reduce((sum, cartItem) => sum + parseInt(cartItem.quantity || 0, 10), 0)}</p> {/* Total quantity */}
@@ -780,7 +780,7 @@ function SalePOS() {
                             placeholder="Enter or scan product code"
                         />
                     </div>
-                    <div className="keypad">
+                    <div className="keypad-sale">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
                             <button
                                 key={key}

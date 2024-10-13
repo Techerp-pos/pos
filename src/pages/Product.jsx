@@ -30,17 +30,18 @@ const Product = () => {
                     Product
                 </div>
                 <div
-                    className={`tab ${activeTab === 'CategoryList' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('CategoryList')}
-                >
-                    Category
-                </div>
-                <div
                     className={`tab ${activeTab === 'Department' ? 'active' : ''}`}
                     onClick={() => setActiveTab('Department')}
                 >
                     Departments
                 </div>
+                <div
+                    className={`tab ${activeTab === 'CategoryList' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('CategoryList')}
+                >
+                    Category
+                </div>
+
             </div>
             <div className="tab-content">
                 {renderComponent()}

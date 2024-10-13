@@ -21,11 +21,14 @@ import {
   FormControlLabel,
   FormGroup,
   DialogActions,
+  IconButton,
 } from '@mui/material';
+import { Search } from '@mui/icons-material';
 
 function Departments() {
   const { currentUser } = useAuth();
   const [departments, setDepartments] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]); // State for filtered departments
   const [newDepartment, setNewDepartment] = useState({
     code: '',
     name: '',
@@ -33,14 +36,23 @@ function Departments() {
     promotion: '',
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSearchVisible, setIsSearchVisible] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(''); // State for search term
+
+  const toggleSearchInput = () => {
+    setIsSearchVisible(!isSearchVisible);
+  };
 
   // Fetch departments function
   const fetchDepartments = async () => {
     const departmentCollection = collection(db, 'departments');
     const departmentSnapshot = await getDocs(departmentCollection);
-    setDepartments(
-      departmentSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    );
+    const fetchedDepartments = departmentSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setDepartments(fetchedDepartments);
+    setFilteredDepartments(fetchedDepartments); // Initialize filtered departments
   };
 
   useEffect(() => {
@@ -93,14 +105,53 @@ function Departments() {
     setIsModalOpen(!isModalOpen);
   };
 
+  // Handle search input changes
+  const handleSearch = (event) => {
+    const value = event.target.value.toLowerCase();
+    setSearchTerm(value);
+
+    // Filter departments based on the search term (match name or promotion)
+    const filtered = departments.filter(
+      (dept) =>
+        dept.name.toLowerCase().includes(value) ||
+        dept.promotion.toLowerCase().includes(value)
+    );
+    setFilteredDepartments(filtered); // Update filtered departments
+  };
+
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h4" component="h2" gutterBottom>
+      {/* <Typography variant="h4" component="h2" gutterBottom>
         Departments
-      </Typography>
-      <Button variant="contained" color="primary" onClick={toggleModal}>
-        Add Department
-      </Button>
+      </Typography> */}
+
+      <div style={{ display: 'flex',
+       }}>
+        <Button variant="contained" color="primary" onClick={toggleModal}>
+          +
+        </Button>
+        <IconButton
+          color="primary"
+          onClick={toggleSearchInput}
+          style={{ marginLeft: '8px' }}
+        >
+          <Search />
+        </IconButton>
+
+        {/* Show Search Input only when Search Button is clicked */}
+        {isSearchVisible && (
+          <TextField
+            label="Search Departments"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            value={searchTerm}
+            onChange={handleSearch} // Function to handle search input change
+            placeholder="Search by name or promotion"
+          />
+        )}
+      </div>
+
 
       {/* Department Table */}
       <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -114,8 +165,13 @@ function Departments() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {departments.map((dept) => (
-              <TableRow key={dept.id}>
+            {filteredDepartments.map((dept, index) => (
+              <TableRow key={dept.id}
+              hover
+              sx={{
+                backgroundColor : index % 2 === 1 ? '#f7f7f7' : 'inherit',
+              }}
+              >
                 <TableCell>{dept.code}</TableCell>
                 <TableCell>{dept.name}</TableCell>
                 <TableCell>{dept.isDeliItem ? 'Yes' : 'No'}</TableCell>

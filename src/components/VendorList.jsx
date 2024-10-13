@@ -15,6 +15,7 @@ import {
     TableCell,
     Paper,
     IconButton,
+    TextField, // Import TextField for search input
     styled,
 } from '@mui/material';
 import { Edit } from '@mui/icons-material';
@@ -26,6 +27,8 @@ const CustomTableCell = styled(TableCell)(({ theme }) => ({
 const VendorList = () => {
     const { currentUser, isSuperAdmin } = useAuth();
     const [vendors, setVendors] = useState([]);
+    const [filteredVendors, setFilteredVendors] = useState([]); // State for filtered vendors
+    const [searchTerm, setSearchTerm] = useState(''); // State for search term
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedVendor, setSelectedVendor] = useState(null);
 
@@ -44,10 +47,25 @@ const VendorList = () => {
             vendorsList.sort((a, b) => a.name.localeCompare(b.name));
 
             setVendors(vendorsList);
+            setFilteredVendors(vendorsList); // Initialize filtered vendors
         };
 
         fetchVendors();
     }, [currentUser, isSuperAdmin]);
+
+    // Handle search input changes
+    const handleSearch = (event) => {
+        const value = event.target.value.toLowerCase();
+        setSearchTerm(value);
+
+        // Filter vendors based on the search term (by name, contact, or address)
+        const filtered = vendors.filter((vendor) =>
+            vendor.name.toLowerCase().includes(value) ||
+            vendor.contact.toLowerCase().includes(value) ||
+            vendor.address.toLowerCase().includes(value)
+        );
+        setFilteredVendors(filtered);
+    };
 
     const handleEditVendor = (vendor) => {
         setSelectedVendor(vendor);
@@ -72,6 +90,14 @@ const VendorList = () => {
                 <Typography variant="h6" component="h4">
                     Vendor List
                 </Typography>
+                <TextField
+                    label="Search Vendors"
+                    variant="outlined"
+                    value={searchTerm}
+                    onChange={handleSearch} // Handle search input change
+                    placeholder="Search by name, contact, or address"
+                    sx={{ mx: 2, flexGrow: 1 }} // Center the search bar and make it wider
+                />
                 <Button
                     variant="contained"
                     color="primary"
@@ -96,8 +122,12 @@ const VendorList = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {vendors.map(vendor => (
-                            <TableRow key={vendor.id} hover>
+                        {filteredVendors.map((vendor, index) => (
+                            <TableRow key={vendor.id} hover
+                            sx= {{
+                                backgroundColor : index % 2 === 1 ? '#f7f7f7' : 'inherit' ,
+                            }}
+                            >
                                 <CustomTableCell>{vendor.code}</CustomTableCell>
                                 <CustomTableCell>{vendor.name}</CustomTableCell>
                                 <CustomTableCell>{vendor.contact}</CustomTableCell>
@@ -112,6 +142,13 @@ const VendorList = () => {
                                 </CustomTableCell>
                             </TableRow>
                         ))}
+                        {filteredVendors.length === 0 && (
+                            <TableRow>
+                                <CustomTableCell colSpan={5} align="center">
+                                    No vendors found.
+                                </CustomTableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </Paper>
