@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import '../utility/JournalEntry.css'; // Make sure to add appropriate styling
+import { TextField, Button, Table, TableBody, TableCell, TableHead, TableRow, Checkbox } from '@mui/material';
+import { Box, width } from '@mui/system';
 
-const JournalEntry = ({ onClose, onSave }) => {
+const generateCode = () => {
+    return 'JV-' + Math.floor(1000 + Math.random() * 9000);
+};
+
+const JournalEntry = ({ onClose, initialData }) => {
     const [entries, setEntries] = useState([{ ledger: '', narration: '', debit: '', credit: '', taxable: false }]);
-    const [date, setDate] = useState('');
-    const [description, setDescription] = useState('');
-    const [code, setCode] = useState('AUTO');
+    const [date, setDate] = useState(initialData?.date || '');
+    const [description, setDescription] = useState(initialData?.description || '');
+    const [code, setCode] = useState(initialData?.code || generateCode());
     const [totalDebit, setTotalDebit] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
     const [errorMessage, setErrorMessage] = useState('');
+
+    useEffect(() => {
+        calculateTotals(entries);
+    }, [entries]);
 
     const handleAddRow = () => {
         setEntries([...entries, { ledger: '', narration: '', debit: '', credit: '', taxable: false }]);
@@ -53,8 +62,7 @@ const JournalEntry = ({ onClose, onSave }) => {
                 createdAt: new Date()
             });
             alert('Journal Entry saved successfully!');
-            onSave();
-            onClose(); // Close the modal after saving
+            onClose();
         } catch (error) {
             console.error('Error saving journal entry:', error);
             alert('Failed to save journal entry');
@@ -62,93 +70,116 @@ const JournalEntry = ({ onClose, onSave }) => {
     };
 
     return (
-        <div className="journal-entry-modal">
-            <div className="journal-entry-content">
-                <h2>New Journal Entry</h2>
-                <button className="close-button" onClick={onClose}>X</button>
-                {errorMessage && <div className="error-message">{errorMessage}</div>}
-                <div className="form-group">
-                    <label>Code</label>
-                    <input type="text" value={code} readOnly />
-                </div>
-                <div className="form-group">
-                    <label>Date</label>
-                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-                </div>
-                <div className="form-group">
-                    <label>Description</label>
-                    <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
-                </div>
-                <table className="journal-entries-table">
-                    <thead>
-                        <tr>
-                            <th>SN</th>
-                            <th>Ledger</th>
-                            <th>Narration</th>
-                            <th>Debit</th>
-                            <th>Credit</th>
-                            <th>Taxable</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <div>
+            <h2 style={{
+                marginBottom: '10px'
+            }}>{initialData ? 'Edit Journal Entry' : 'New Journal Entry'}</h2>
+            {errorMessage && <p>{errorMessage}</p>}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between'
+            }}>
+                <Box mb={4} style={{width: '50%'}}>
+                    <TextField label="Code" value={code} fullWidth readOnly />
+                </Box>
+                <Box mb={2}>
+                    <TextField
+                        label="Date"
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </Box>
+                <Box mb={2} style={{width: '30%'}}>
+                    <TextField
+                        label="Description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        fullWidth
+                    />
+                </Box>
+            </div>
+
+            <div style={{
+                padding: '20px',
+                boxShadow: 'rgba(0, 0, 0, 0.05) 0px 6px 24px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px',
+                borderRadius: '5px'
+            }}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>SN</TableCell>
+                            <TableCell>Ledger</TableCell>
+                            <TableCell>Narration</TableCell>
+                            <TableCell>Debit</TableCell>
+                            <TableCell>Credit</TableCell>
+                            <TableCell>Taxable</TableCell>
+                            <TableCell>Action</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
                         {entries.map((entry, index) => (
-                            <tr key={index}>
-                                <td>{index + 1}</td>
-                                <td>
-                                    <input
-                                        type="text"
+                            <TableRow key={index}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>
+                                    <TextField
                                         value={entry.ledger}
                                         onChange={(e) => handleChange(index, 'ledger', e.target.value)}
                                     />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
+                                </TableCell>
+                                <TableCell>
+                                    <TextField
                                         value={entry.narration}
                                         onChange={(e) => handleChange(index, 'narration', e.target.value)}
                                     />
-                                </td>
-                                <td>
-                                    <input
+                                </TableCell>
+                                <TableCell>
+                                    <TextField
                                         type="number"
                                         value={entry.debit}
                                         onChange={(e) => handleChange(index, 'debit', e.target.value)}
                                     />
-                                </td>
-                                <td>
-                                    <input
+                                </TableCell>
+                                <TableCell>
+                                    <TextField
                                         type="number"
                                         value={entry.credit}
                                         onChange={(e) => handleChange(index, 'credit', e.target.value)}
                                     />
-                                </td>
-                                <td>
-                                    <input
-                                        type="checkbox"
+                                </TableCell>
+                                <TableCell>
+                                    <Checkbox
                                         checked={entry.taxable}
                                         onChange={(e) => handleChange(index, 'taxable', e.target.checked)}
                                     />
-                                </td>
-                                <td>
-                                    <button onClick={() => handleRemoveRow(index)}>Remove</button>
-                                </td>
-                            </tr>
+                                </TableCell>
+                                <TableCell>
+                                    <Button onClick={() => handleRemoveRow(index)}>Remove</Button>
+                                </TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
-                </table>
-                <div className="journal-entry-footer">
-                    <button onClick={handleAddRow}>Add Row</button>
-                    <div className="totals">
-                        <p>Total Debit: {totalDebit}</p>
-                        <p>Total Credit: {totalCredit}</p>
-                    </div>
-                </div>
-                <div className="journal-entry-actions">
-                    <button onClick={handleSubmit}>Save</button>
-                    <button onClick={onClose}>Close</button> {/* Close button added here */}
-                </div>
+                    </TableBody>
+                </Table>
             </div>
+
+
+            <Button onClick={handleAddRow}>Add Row</Button>
+            <Box mt={2}>
+                <p>Total Debit: {totalDebit}</p>
+                <p>Total Credit: {totalCredit}</p>
+            </Box>
+            <Box mt={2}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <Button variant="contained" color="primary" onClick={handleSubmit}>
+                        Save
+                    </Button>
+                    <Button variant="outlined" onClick={onClose}>
+                        Cancel
+                    </Button>
+                </div>
+            </Box>
         </div>
     );
 };

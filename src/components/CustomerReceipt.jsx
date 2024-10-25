@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, Button, Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Modal, Box, Typography, FormControl, InputLabel, Select, MenuItem, Snackbar } from '@mui/material';
+import { TextField, Button, Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Modal, Box, Typography, FormControl, InputLabel, Select, MenuItem, Snackbar, CircularProgress } from '@mui/material';
 import moment from 'moment';
 import { db } from '../config/firebase';
 import { collection, query, onSnapshot, doc, writeBatch, setDoc, getDocs, where, deleteDoc } from 'firebase/firestore';
 import { Alert } from '@mui/material';
-import '../utility/CustomerReceipt.css';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-
+import '../utility/CustomerReceipt.css'
 function CustomerReceipt() {
     const [transactions, setTransactions] = useState([]);
     const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -23,13 +22,11 @@ function CustomerReceipt() {
     const [balance, setBalance] = useState(0);
     const [voucherNumber, setVoucherNumber] = useState('AUTO');
     const [account, setAccount] = useState('');
-    const [cashPaid, setCashPaid] = useState(false);
-    // Add these to your state declarations
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
-    const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+    const [orderPayments, setOrderPayments] = useState({}); // New state for "To Receive" and "Discount" per order
+    const [isLoading, setIsLoading] = useState(true);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false); // Control MUI dialog visibility
+    const [transactionToDelete, setTransactionToDelete] = useState(null); // Store transaction to delete
 
-    // Function to handle showing the snackbar
     const handleSnackbarClose = () => {
         setSnackbarOpen(false);
     };
@@ -40,8 +37,8 @@ function CustomerReceipt() {
             const transactionList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setTransactions(transactionList);
             setFilteredTransactions(transactionList);
+            setIsLoading(false);
         });
-
         return () => unsubscribe();
     }, []);
 
@@ -51,7 +48,6 @@ function CustomerReceipt() {
             const customerList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setCustomers(customerList);
         });
-
         return () => unsubscribe();
     }, []);
 
@@ -70,75 +66,104 @@ function CustomerReceipt() {
 
         if (customer) {
             const ordersQuery = query(collection(db, 'orders'), where('customer', '==', customer.name));
-
-            // Subscribe to real-time updates with onSnapshot
             const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
                 const orderList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const filteredOrders = orderList.filter(order => order.cashPaid !== true);
                 setOrders(filteredOrders);
             });
-
-            return () => unsubscribe();  // Unsubscribe when component unmounts
+            return () => unsubscribe();
         }
     };
 
     const handleOrderSelection = (order, isSelected) => {
         let updatedSelectedOrders = [...selectedOrders];
+        let updatedOrderPayments = { ...orderPayments };
 
         if (isSelected) {
             updatedSelectedOrders.push(order);
+            updatedOrderPayments[order.id] = {
+                toReceive: parseFloat(order.total || 0), // Initialize with the full amount
+                discount: 0 // Initialize discount as 0
+            };
         } else {
             updatedSelectedOrders = updatedSelectedOrders.filter(o => o.id !== order.id);
+            delete updatedOrderPayments[order.id];
         }
 
         setSelectedOrders(updatedSelectedOrders);
-        recalculateFooterTotals(updatedSelectedOrders);
+        setOrderPayments(updatedOrderPayments);
+        recalculateFooterTotals(updatedOrderPayments); // Recalculate footer totals
     };
 
-    const recalculateFooterTotals = (ordersList) => {
-        const totalToReceive = ordersList.reduce((sum, order) => sum + (parseFloat(order.total || 0)), 0);
+    const handlePaymentChange = (orderId, field, value) => {
+        let updatedOrderPayments = { ...orderPayments };
+        updatedOrderPayments[orderId][field] = parseFloat(value) || 0;
+
+        setOrderPayments(updatedOrderPayments);
+        recalculateFooterTotals(updatedOrderPayments);
+    };
+
+    const recalculateFooterTotals = (orderPayments) => {
+        const totalToReceive = Object.values(orderPayments).reduce((sum, order) => sum + order.toReceive, 0);
+        const totalDiscount = Object.values(orderPayments).reduce((sum, order) => sum + order.discount, 0);
+        const totalPaid = totalToReceive - totalDiscount;
+
         setTotalToReceive(totalToReceive);
-
-        const totalPaid = totalToReceive.toFixed(3);
+        setDiscount(totalDiscount);
         setPaid(totalPaid);
-
-        // Calculate total balance
-        const totalBalance = totalToReceive - totalPaid - parseFloat(discount || 0);
-        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
+        setBalance(totalToReceive - totalPaid - totalDiscount);
     };
-
 
     const handleSaveReceipt = async () => {
         try {
             const voucherNumber = await generateNumericVoucherNumber();
             const newVoucherRef = doc(collection(db, 'customerReceipts'));
 
+            // Prepare receipt data to save
             const receiptData = {
                 voucherNumber: voucherNumber || 1000,
                 date: transactionDate.format('YYYY-MM-DD'),
                 customer: selectedCustomer?.name || 'Unknown',
                 totalAmount: parseFloat(totalToReceive) || 0,
                 paymentType: account || 'cash',
-                paidOrderDetails: selectedOrders.length > 0 ? selectedOrders.map(order => ({
-                    orderId: order.id,
-                    total: parseFloat(order.total) || 0,
-                    paid: parseFloat(order.paid) || 0,
-                    balance: parseFloat(order.total) - parseFloat(order.paid) // Storing balance for partial payments
-                })) : [],
+                discount: parseFloat(discount) || 0,  // Overall transaction discount
+                paid: parseFloat(paid) || 0,  // Amount paid for the transaction
+                balance: parseFloat(balance) || 0,  // Remaining balance after payment
+                paidOrderDetails: selectedOrders.length > 0
+                    ? selectedOrders.map(order => ({
+                        orderId: order.orderNumber,
+                        total: parseFloat(order.total) || 0,
+                        toReceive: orderPayments[order.id]?.toReceive || 0,
+                        discount: orderPayments[order.id]?.discount || 0,
+                        balance: orderPayments[order.id]?.toReceive - orderPayments[order.id]?.discount // Calculated balance for each order
+                    }))
+                    : []
             };
 
+            // Save the receipt data to Firestore
             await setDoc(newVoucherRef, receiptData);
 
+            // Use Firestore batch to update each selected order
             const batch = writeBatch(db);
+
             selectedOrders.forEach(order => {
                 const orderRef = doc(db, 'orders', order.id);
-                const balance = (parseFloat(order.total) || 0) - (parseFloat(order.paid) || 0);
+
+                // Calculate the balance and discount directly from the receiptData's paidOrderDetails
+                const orderReceipt = receiptData.paidOrderDetails.find(o => o.orderId === order.orderNumber);
+                const receiptBalance = orderReceipt?.balance || 0;  // Use balance from receiptData
+                const receiptDiscount = orderReceipt?.discount || 0;  // Use discount from receiptData
+
+                // Update the order document fields
                 batch.update(orderRef, {
-                    CashReceipt: balance,
-                    cashPaid: balance === 0 ? true : false, // Mark as fully paid if balance is 0
-                    balance: balance // Update balance for future payments
+                    CashReceipt: orderReceipt.toReceive, // Use the 'toReceive' value from the receipt
+                    cashPaid: receiptBalance === 0 ? true : false, // If balance is 0, mark cashPaid as true
+                    CashBalance: receiptBalance, // Set the balance for the order from the receipt
+                    receiptDiscount: receiptDiscount // Add the receipt discount to the order document
                 });
             });
+
+            // Commit the batch updates
             await batch.commit();
 
             // Reset all states after saving
@@ -146,7 +171,7 @@ function CustomerReceipt() {
             setPaid(0);
             setDiscount(0);
             setSelectedOrders([]);
-            setTransactionDate(moment()); // Reset date to current
+            setTransactionDate(moment());
             setVoucherNumber('AUTO');
             setAccount('');
             setBalance(0);
@@ -157,6 +182,95 @@ function CustomerReceipt() {
         }
     };
 
+    // Function to handle printing the receipt as PDF
+    const handlePrintReceipt = (transaction) => {
+        const doc = new jsPDF();
+
+        // Header Section
+        doc.setFontSize(18);
+        doc.text('Customer Receipt', 105, 20, { align: 'center' });
+
+        // Customer and Voucher Information
+        doc.setFontSize(12);
+        doc.text(`Voucher Number: ${transaction.voucherNumber}`, 20, 40);
+        doc.text(`Customer: ${transaction.customer}`, 20, 50);
+        doc.text(`Date: ${transaction.date}`, 20, 60);
+        doc.text(`Total Amount: ${transaction.totalAmount?.toFixed(3)} OMR`, 20, 70);
+        doc.text(`Payment Type: ${transaction.paymentType}`, 20, 80);
+
+        // Table for Order Details
+        if (transaction.paidOrderDetails && transaction.paidOrderDetails.length > 0) {
+            const tableData = transaction.paidOrderDetails.map((order) => [
+                order.orderId,
+                order?.total.toFixed(3),
+                order?.CashReceipt.toFixed(3),
+                order?.receiptDiscount.toFixed(3),
+                order?.CashBalance.toFixed(3),
+            ]);
+
+            doc.autoTable({
+                head: [['Order ID', 'Total (OMR)', 'Received (OMR)', 'Discount (OMR)', 'Balance (OMR)']],
+                body: tableData,
+                startY: 90,
+                styles: {
+                    halign: 'center',
+                    valign: 'middle',
+                    fontSize: 10,
+                },
+                headStyles: {
+                    fillColor: [22, 160, 133], // Custom table header color
+                    textColor: [255, 255, 255],
+                },
+            });
+        }
+
+        // Footer Section
+        doc.setFontSize(12);
+        doc.text('Thank you for your business!', 105, doc.lastAutoTable.finalY + 20, { align: 'center' });
+
+        // Save the PDF
+        doc.save(`receipt_${transaction.voucherNumber}.pdf`);
+    };
+
+
+    const handleDeleteTransaction = async (transaction) => {
+        setDeleteDialogOpen(false); // Close the delete confirmation dialog
+
+        try {
+            // Delete the transaction from the 'customerReceipts' collection
+            await deleteDoc(doc(db, 'customerReceipts', transaction.id));
+
+            const batch = writeBatch(db); // Use a batch to ensure all updates happen atomically
+
+            // Iterate over the related orders and revert the changes made by this transaction
+            transaction.paidOrderDetails.forEach(order => {
+                const orderRef = doc(db, 'orders', order.orderId);
+
+                // Update each order to reset the cash-related fields
+                batch.update(orderRef, {
+                    CashReceipt: 0, // Reset the cash receipt field to 0
+                    cashPaid: false, // Mark the order as unpaid
+                    CashBalance: parseFloat(order.total) || 0 // Revert the balance to the original total
+                });
+            });
+
+            // Commit the batch updates
+            await batch.commit();
+
+            // Provide feedback through a snackbar or similar UI element
+            setSnackbarMessage('Transaction deleted, and all related changes have been reverted.');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+
+        } catch (error) {
+            // Handle errors if something goes wrong
+            console.error('Error deleting transaction and reverting changes:', error);
+            setSnackbarMessage('Error occurred while deleting the transaction.');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        }
+    };
+
     const generateNumericVoucherNumber = async () => {
         const latestVoucherSnapshot = await getDocs(collection(db, 'customerReceipts'));
         const voucherList = latestVoucherSnapshot.docs
@@ -164,106 +278,35 @@ function CustomerReceipt() {
             .filter(voucherNumber => !isNaN(voucherNumber));
 
         const maxVoucherNumber = voucherList.length > 0 ? Math.max(...voucherList) : 1000;
-        return maxVoucherNumber + 1;
+        return (maxVoucherNumber + 1).toString().padStart(4, '0');
     };
 
     const openModal = (type) => {
+        // Clear all relevant states
+        setOrders([]);                 // Clear all loaded orders
+        setSelectedOrders([]);          // Clear selected orders
+        setOrderPayments({});           // Clear order payment details
+        setTotalToReceive(0);           // Reset total to receive
+        setDiscount(0);                 // Reset discount
+        setPaid(0);                     // Reset paid amount
+        setBalance(0);                  // Reset balance
+
+        // Set the account type and open the modal
         setAccount(type);
         setIsModalOpen(true);
     };
 
+
     const closeModal = () => {
-        setSelectedCustomer(null);
-        setPaid(0);
-        setDiscount(0);
-        setSelectedOrders([]);
         setIsModalOpen(false);
-    };
-
-    // Function to handle printing the receipt as PDF
-    const handlePrintReceipt = (transaction) => {
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text('Customer Receipt', 20, 20);
-
-        doc.setFontSize(12);
-        doc.text(`Voucher Number: ${transaction.voucherNumber}`, 20, 30);
-        doc.text(`Customer: ${transaction.customer}`, 20, 40);
-        doc.text(`Date: ${transaction.date}`, 20, 50);
-        doc.text(`Total Amount: ${transaction.totalAmount?.toFixed(3)} OMR`, 20, 60);
-        doc.text(`Payment Type: ${transaction.paymentType}`, 20, 70);
-
-        // Add table for paidOrderDetails if applicable
-        if (transaction.paidOrderDetails && transaction.paidOrderDetails.length > 0) {
-            const tableData = transaction.paidOrderDetails.map((order) => [
-                order.orderId,
-                order.total,
-                order.paid,
-                order.balance // Show balance in the printout
-            ]);
-            doc.autoTable({
-                head: [['Order ID', 'Total', 'Paid', 'Balance']],
-                body: tableData,
-                startY: 80,
-            });
-        }
-
-        // Save and open the PDF
-        doc.save(`receipt_${transaction.voucherNumber}.pdf`);
-    };
-
-    const handlePaidChange = (value) => {
-        const receivedAmount = parseFloat(value) || 0;
-        setPaid(receivedAmount);
-
-        // Calculate total balance
-        const totalBalance = totalToReceive - receivedAmount - parseFloat(discount || 0);
-        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
-    };
-
-
-    const handleDiscountChange = (value) => {
-        const discountAmount = parseFloat(value) || 0;
-        setDiscount(discountAmount);
-
-        // Calculate total balance
-        const totalBalance = totalToReceive - paid - discountAmount;
-        setBalance(totalBalance >= 0 ? totalBalance : 0); // Ensure balance doesn't go below 0
-    };
-
-
-
-    // Function to handle deleting a voucher
-    // Updated handleDeleteVoucher function to use Snackbar instead of alert
-    const handleDeleteVoucher = async (transaction) => {
-        if (window.confirm('Are you sure you want to delete this voucher and revoke changes?')) {
-            try {
-                await deleteDoc(doc(db, 'customerReceipts', transaction.id));
-
-                const batch = writeBatch(db);
-
-                transaction.paidOrderDetails.forEach((order) => {
-                    const orderRef = doc(db, 'orders', order.orderId);
-                    batch.update(orderRef, {
-                        cashPaid: false,
-                        CashReceipt: 0,
-                        balance: parseFloat(order.total) - parseFloat(order.paid)
-                    });
-                });
-
-                await batch.commit();
-
-                // Show success snackbar
-                setSnackbarMessage('Voucher and related orders successfully deleted and reverted.');
-                setSnackbarSeverity('success');
-                setSnackbarOpen(true);
-            } catch (error) {
-                // Show error snackbar
-                setSnackbarMessage('Error deleting voucher.');
-                setSnackbarSeverity('error');
-                setSnackbarOpen(true);
-            }
-        }
+        setOrders([]);                 // Clear all loaded orders
+        setSelectedCustomer(null);      // Clear selected customer
+        setSelectedOrders([]);          // Clear selected orders
+        setOrderPayments({});           // Clear order payment details
+        setTotalToReceive(0);           // Reset total to receive
+        setDiscount(0);                 // Reset discount
+        setPaid(0);                     // Reset paid amount
+        setBalance(0);                  // Reset balance
     };
 
     return (
@@ -283,148 +326,142 @@ function CustomerReceipt() {
                 </Box>
             </Box>
 
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableCell>Voucher Number</TableCell>
-                        <TableCell>Date</TableCell>
-                        <TableCell>From</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Discount</TableCell>
-                        <TableCell>Paid</TableCell>
-                        <TableCell>Balance</TableCell>
-                        <TableCell>Action</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {filteredTransactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                            <TableCell>{transaction.voucherNumber}</TableCell>
-                            <TableCell>{transaction.date}</TableCell>
-                            <TableCell>{transaction.customer}</TableCell>
-                            <TableCell>{transaction.totalAmount?.toFixed(3) || 0.000} OMR</TableCell>
-                            <TableCell>{transaction.discount?.toFixed(3) || 0.000} OMR</TableCell>
-                            <TableCell>{transaction.paid?.toFixed(3) || 0.000} OMR</TableCell>
-                            <TableCell>{transaction.balance?.toFixed(3) || 0.000} OMR</TableCell>
-                            <TableCell>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    {/* Print Button */}
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        onClick={() => handlePrintReceipt(transaction)}
-                                    >
-                                        Print
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        color="secondary"
-                                        onClick={() => handleDeleteVoucher(transaction)}
-                                    >
-                                        Delete
-                                    </Button>
-                                </div>
-                            </TableCell>
+            {isLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <CircularProgress />
+                </div>
+            ) : (
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Voucher Number</TableCell>
+                            <TableCell>Date</TableCell>
+                            <TableCell>Customer</TableCell>
+                            <TableCell>Total Amount</TableCell>
+                            <TableCell>Paid</TableCell>
+                            <TableCell>Balance</TableCell>
+                            <TableCell>Action</TableCell>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={handleSnackbarClose}
-            >
-                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
-                    {snackbarMessage}
-                </Alert>
-            </Snackbar>
-            <Modal open={isModalOpen} onClose={closeModal}>
-                <Box sx={{ width: 900, padding: 3, backgroundColor: 'white', margin: '100px auto' }}>
-                    <Typography variant="h6">Customer Cash Voucher</Typography>
+                    </TableHead>
+                    <TableBody>
+                        {filteredTransactions.map((transaction) => (
+                            <TableRow key={transaction.id}>
+                                <TableCell>{transaction.voucherNumber}</TableCell>
+                                <TableCell>{transaction.date}</TableCell>
+                                <TableCell>{transaction.customer}</TableCell>
+                                <TableCell>{transaction.totalAmount?.toFixed(3)} OMR</TableCell>
+                                <TableCell>{transaction.paid?.toFixed(3)} OMR</TableCell>
+                                <TableCell>{transaction.balance?.toFixed(3)} OMR</TableCell>
+                                <TableCell>
+                                    <div style={{
+                                        display: 'flex', gap: '10px'
+                                    }}>
+                                        <Button variant="contained" color="primary" onClick={() => handlePrintReceipt(transaction)}>
+                                            Print
+                                        </Button>
+                                        <Button variant="contained" color="primary" onClick={() => handleDeleteTransaction(transaction)}>
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
 
-                    <Box display="flex" gap={2} mt={2}>
-                        <TextField label="Voucher Number" value={voucherNumber} disabled fullWidth />
-                        <TextField
-                            label="Date"
-                            type="date"
-                            value={transactionDate.format('YYYY-MM-DD')}
-                            onChange={(e) => setTransactionDate(moment(e.target.value))}
-                            fullWidth
-                        />
-                    </Box>
+            {isModalOpen && (
+                <Modal open={isModalOpen} onClose={closeModal}>
+                    <Box sx={{ width: 900, padding: 3, backgroundColor: 'white', margin: '100px auto' }}>
+                        <Typography variant="h6">Customer Cash Voucher</Typography>
+                        <Box display="flex" gap={2} mt={2}>
+                            <TextField label="Voucher Number" value={voucherNumber} disabled fullWidth />
+                            <TextField
+                                label="Date"
+                                type="date"
+                                value={transactionDate.format('YYYY-MM-DD')}
+                                onChange={(e) => setTransactionDate(moment(e.target.value))}
+                                fullWidth
+                            />
+                        </Box>
 
-                    <FormControl fullWidth sx={{ marginTop: 2 }}>
-                        <InputLabel>Select Customer</InputLabel>
-                        <Select value={selectedCustomer?.id || ''} onChange={(e) => handleCustomerChange(e.target.value)}>
-                            {customers.map(customer => (
-                                <MenuItem key={customer.id} value={customer.id}>{customer.name}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <FormControl fullWidth sx={{ marginTop: 2 }}>
-                        <InputLabel>Select Account</InputLabel>
-                        <Select value={account || ''} onChange={(e) => setAccount(e.target.value)}>
-                            <MenuItem value="cash">Cash</MenuItem>
-                            <MenuItem value="bank">Bank</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Add a scrollable table inside the modal */}
-                    <Box sx={{ maxHeight: '300px', overflowY: 'scroll', mt: 3 }}>
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Select</TableCell>
-                                    <TableCell>Invoice Number</TableCell>
-                                    <TableCell>Date</TableCell>
-                                    <TableCell>Type</TableCell>
-                                    <TableCell>Total</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {orders.map(order => (
-                                    <TableRow key={order.id}>
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={selectedOrders.some(o => o.id === order.id)}
-                                                onChange={(e) => handleOrderSelection(order, e.target.checked)}
-                                            />
-                                        </TableCell>
-                                        <TableCell>{order.orderNumber}</TableCell>
-                                        <TableCell>{order.timestamp.toDate().toISOString().split('T')[0]}</TableCell>
-                                        <TableCell>{order.paymentMethod}</TableCell>
-                                        <TableCell>{order.total || 'Unable to Fetch'}</TableCell>
-                                    </TableRow>
+                        <FormControl fullWidth sx={{ marginTop: 2 }}>
+                            <InputLabel>Select Customer</InputLabel>
+                            <Select value={selectedCustomer?.id || ''} onChange={(e) => handleCustomerChange(e.target.value)}>
+                                {customers.map(customer => (
+                                    <MenuItem key={customer.id} value={customer.id}>{customer.name}</MenuItem>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </Box>
+                            </Select>
+                        </FormControl>
 
-                    <Box display="flex" gap={2} mt={2}>
-                        <TextField label="To Receive" value={totalToReceive?.toFixed(3)} fullWidth readOnly/>
-                        <TextField
-                            label="Discount"
-                            value={discount}
-                            onChange={(e) => handleDiscountChange(e.target.value)}
-                            fullWidth
-                        />
-                        <TextField
-                            label="Received"
-                            value={paid}
-                            onChange={(e) => handlePaidChange(e.target.value)}
-                            fullWidth
-                        />
-                        <TextField label="Balance" value={balance.toFixed(3)} fullWidth readOnly />
-                    </Box>
+                        <FormControl fullWidth sx={{ marginTop: 2 }}>
+                            <InputLabel>Select Account</InputLabel>
+                            <Select value={account || ''} onChange={(e) => setAccount(e.target.value)}>
+                                <MenuItem value="cash">Cash</MenuItem>
+                                <MenuItem value="bank">Bank</MenuItem>
+                            </Select>
+                        </FormControl>
 
-                    <Box display="flex" justifyContent="space-between" mt={3}>
-                        <Button onClick={handleSaveReceipt} variant="contained" color="primary">Save</Button>
-                        <Button onClick={closeModal} variant="outlined" color="secondary">Cancel</Button>
-                    </Box>
-                </Box>
-            </Modal>
+                        {selectedCustomer && orders.length > 0 && (
+                            <Box sx={{ maxHeight: '300px', overflowY: 'scroll', mt: 3 }}>
+                                <Table stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Select</TableCell>
+                                            <TableCell>Invoice Number</TableCell>
+                                            <TableCell>Date</TableCell>
+                                            <TableCell>Type</TableCell>
+                                            <TableCell>Total</TableCell>
+                                            <TableCell>To Receive</TableCell>
+                                            <TableCell>Discount</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {orders.map(order => (
+                                            <TableRow key={order.id}>
+                                                <TableCell>
+                                                    <Checkbox
+                                                        checked={selectedOrders.some(o => o.id === order.id)}
+                                                        onChange={(e) => handleOrderSelection(order, e.target.checked)}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>{order.orderNumber}</TableCell>
+                                                <TableCell>{order.timestamp.toDate().toISOString().split('T')[0]}</TableCell>
+                                                <TableCell>{order.paymentMethod}</TableCell>
+                                                <TableCell>{order.total || 'Unable to Fetch'}</TableCell>
+                                                <TableCell>
+                                                    <TextField
+                                                        value={orderPayments[order.id]?.toReceive || ''}
+                                                        onChange={(e) => handlePaymentChange(order.id, 'toReceive', e.target.value)}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <TextField
+                                                        value={orderPayments[order.id]?.discount || ''}
+                                                        onChange={(e) => handlePaymentChange(order.id, 'discount', e.target.value)}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        )}
 
+                        <Box display="flex" gap={2} mt={2}>
+                            <TextField label="To Receive" value={totalToReceive?.toFixed(3)} fullWidth readOnly />
+                            <TextField label="Discount" value={discount?.toFixed(3)} fullWidth readOnly />
+                            <TextField label="Received" value={paid?.toFixed(3)} fullWidth readOnly />
+                            <TextField label="Balance" value={balance.toFixed(3)} fullWidth readOnly />
+                        </Box>
+
+                        <Box display="flex" justifyContent="space-between" mt={3} width='900px'>
+                            <Button onClick={handleSaveReceipt} variant="contained" color="primary">Save</Button>
+                            <Button onClick={closeModal} variant="outlined" color="secondary">Cancel</Button>
+                        </Box>
+                    </Box>
+                </Modal>
+            )}
         </div>
     );
 }

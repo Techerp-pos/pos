@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { Button, Table, TableBody, TableCell, TableHead, TableRow, Modal, Paper } from '@mui/material';
 import JournalEntry from './JournalEntry';
+import { Box, margin } from '@mui/system';
 
 const JournalEntryList = () => {
     const [journalEntries, setJournalEntries] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const [selectedEntry, setSelectedEntry] = useState(null);
 
     useEffect(() => {
         const fetchJournalEntries = async () => {
@@ -20,7 +23,8 @@ const JournalEntryList = () => {
         fetchJournalEntries();
     }, [showModal]); // Re-fetch journal entries when the modal is closed
 
-    const handleOpenModal = () => {
+    const handleOpenModal = (entry) => {
+        setSelectedEntry(entry);
         setShowModal(true);
     };
 
@@ -28,43 +32,60 @@ const JournalEntryList = () => {
         setShowModal(false);
     };
 
-    const handleSave = () => {
-        setShowModal(false);
-    };
-
     return (
-        <div className="journal-entry-list">
+        <div>
             <h2>Journal Entry List</h2>
-            <button onClick={handleOpenModal}>New Journal Entry</button>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Date</th>
-                        <th>Total Debit</th>
-                        <th>Total Credit</th>
-                        <th>Description</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <Button variant="contained" color="primary" onClick={() => handleOpenModal(null)} style={{
+                margin: '10px'
+            }}>
+                New Journal Entry
+            </Button>
+
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Code</TableCell>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Total Debit</TableCell>
+                        <TableCell>Total Credit</TableCell>
+                        <TableCell>Description</TableCell>
+                        <TableCell>Actions</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
                     {journalEntries.map(entry => (
-                        <tr key={entry.id}>
-                            <td>{entry.code}</td>
-                            <td>{entry.date}</td>
-                            <td>{entry.totalDebit}</td>
-                            <td>{entry.totalCredit}</td>
-                            <td>{entry.description}</td>
-                            <td>
-                                <button>View</button>
-                                <button>Update</button>
-                                <button>Print</button>
-                            </td>
-                        </tr>
+                        <TableRow key={entry.id}>
+                            <TableCell>{entry.code}</TableCell>
+                            <TableCell>{entry.date}</TableCell>
+                            <TableCell>{entry.totalDebit}</TableCell>
+                            <TableCell>{entry.totalCredit}</TableCell>
+                            <TableCell>{entry.description}</TableCell>
+                            <TableCell>
+                                <Button onClick={() => handleOpenModal(entry)}>View</Button>
+                                <Button>Update</Button>
+                                <Button>Print</Button>
+                            </TableCell>
+                        </TableRow>
                     ))}
-                </tbody>
-            </table>
-            {showModal && <JournalEntry onClose={handleCloseModal} onSave={handleSave} />}
+                </TableBody>
+            </Table>
+
+            {/* Modal for viewing or adding new journal entry */}
+            <Modal open={showModal} onClose={handleCloseModal}>
+                <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    minHeight="100vh" /* Centers the modal vertically and horizontally */
+                >
+                    <Paper style={{ padding: '20px', margin: '20px', width: '1200px' }}>
+                        <JournalEntry
+                            onClose={handleCloseModal}
+                            initialData={selectedEntry}
+                        />
+                    </Paper>
+                </Box>
+            </Modal>
         </div>
     );
 };

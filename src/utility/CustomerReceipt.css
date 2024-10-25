@@ -1,7 +1,19 @@
-.css-10ukr6t-MuiTableCell-root{
+.css-10ukr6t-MuiTableCell-root {
     padding: 5px !important;
 }
 
-.css-awv5mc{
-    margin: 15px auto !important;
+.css-awv5mc {
+    margin: 50px auto !important;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.css-5dau9u {
+    max-height: 250px;
+    width: 900px;
+    margin-bottom: 20px;
+    padding: 10px;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
 }
