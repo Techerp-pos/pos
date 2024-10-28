@@ -1,10 +1,13 @@
 .css-46bh2p-MuiCardContent-root {
     padding: 10px !important;
-    min-height: 90vh !important;
     margin-bottom: 20px !important;
     max-height: calc(100% - 10px) !important;
 }
 
 .custom-dialog-paper {
     --Paper-shadow: 0px 2px 1px -1px rgba(200, 0, 0, 0) !important;
+}
+
+.css-1kxd7on-MuiDialogContent-root{
+    padding: 0px !important;
 }

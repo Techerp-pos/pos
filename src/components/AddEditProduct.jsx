@@ -296,7 +296,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
   return (
     <Card className='product-modal-container'>
       <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
           <Typography variant="h6">
             {initialProduct ? `Edit ${product.name}` : 'Add New Product'}
           </Typography>
@@ -314,9 +314,9 @@ function AddEditProduct({ onClose, product: initialProduct }) {
         </Tabs>
 
         {activeTab === 'product' && (
-          <Box component="form" onSubmit={handleSubmit} mt={2}>
+          <Box component="form" onSubmit={handleSubmit} mt={1}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Code"
@@ -326,7 +326,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Name"
@@ -337,7 +337,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Short Name"
@@ -347,7 +347,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Local Name"
@@ -357,7 +357,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <FormControl fullWidth>
                   <InputLabel>Vendor</InputLabel>
                   <Select
@@ -374,7 +374,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <FormControl fullWidth>
                   <InputLabel>Department</InputLabel>
                   <Select
@@ -390,7 +390,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <FormControl fullWidth>
                   <InputLabel>Category</InputLabel>
                   <Select
@@ -407,7 +407,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <FormControl fullWidth>
                   <InputLabel>Tax Type</InputLabel>
                   <Select
@@ -420,7 +420,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={2}>
                 <TextField
                   fullWidth
                   label="Barcode"
@@ -438,7 +438,7 @@ function AddEditProduct({ onClose, product: initialProduct }) {
                 <svg ref={barcodeRef}></svg>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={2}>
                 <TextField
                   fullWidth
                   label="Stock"
