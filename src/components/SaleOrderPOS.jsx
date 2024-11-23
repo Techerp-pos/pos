@@ -264,7 +264,7 @@ function SaleOrderPOS() {
     };
 
     return (
-        <div className="sale-pos">
+        <div className="sale-pos" style={{ flexDirection: 'row' }}>
             <div className="left-panel">
                 <div className="search-container">
                     <Select
@@ -279,46 +279,47 @@ function SaleOrderPOS() {
                         placeholder="Search or Scan the product"
                         isClearable
                     />
-                </div>
-                <table className="sales-table">
-                    <thead>
-                        <tr>
-                            <th>SN</th>
-                            <th>Item</th>
-                            <th>UOM</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Disc</th>
-                            <th>Tax</th>
-                            <th>Amt</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {cart.map((cartItem, index) => (
-                            <tr
-                                key={cartItem.id}
-                                onClick={() => setSelectedItem(cartItem)}
-                                className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
-                            >
-                                <td>{index + 1}</td>
-                                <td>{cartItem.name}</td>
-                                <td>{cartItem.unitType}</td>
-                                <td>{cartItem.quantity}</td>
-                                <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
-                                <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
-                                <td>{cartItem.taxType}</td>
-                                <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                    <table className="sales-table">
+                        <thead>
+                            <tr>
+                                <th>SN</th>
+                                <th>Item</th>
+                                <th>UOM</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Disc</th>
+                                <th>Tax</th>
+                                <th>Amt</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {cart.map((cartItem, index) => (
+                                <tr
+                                    key={cartItem.id}
+                                    onClick={() => setSelectedItem(cartItem)}
+                                    className={selectedItem?.id === cartItem.id ? 'selected-row' : ''}
+                                >
+                                    <td>{index + 1}</td>
+                                    <td>{cartItem.name}</td>
+                                    <td>{cartItem.unitType}</td>
+                                    <td>{cartItem.quantity}</td>
+                                    <td>{parseFloat(cartItem.price || 0).toFixed(3)}</td>
+                                    <td>{parseFloat(cartItem.discount || 0).toFixed(3)}</td>
+                                    <td>{cartItem.taxType}</td>
+                                    <td>{(parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)).toFixed(3)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
                 <div className="sales-summary">
                     <p>Total: {cart.reduce((sum, cartItem) => sum + (parseFloat(cartItem.price || 0) * parseInt(cartItem.quantity || 0, 10)), 0).toFixed(3)}</p>
                 </div>
             </div>
 
             <div style={{ display: 'flex' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll",  width: '200px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', overflowY: "scroll", width: '200px' }}>
                     <div className="departments" style={{ display: 'flex', flexDirection: 'column', maxWidth: '200px' }}>
                         {departments.map(department => (
                             <button
@@ -359,9 +360,9 @@ function SaleOrderPOS() {
                     <button>Switch</button>
                     <button>Customer</button>
                 </div>
-                <button className="remove" onClick={handleRemoveItem}>Remove</button>
-                <button className="remove" onClick={handlePlaceOrder} style={{ background: 'green' }}>Place Order</button>
-                <div className="keypad">
+                <button className="remove" onClick={handleRemoveItem} style={{ borderRadius: '5px' }}>Remove</button>
+                <button className="remove" onClick={handlePlaceOrder} style={{ background: 'green', borderRadius: '5px' }}>Place Order</button>
+                <div className="keypad" style={{ width: '100%' }}>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map(key => (
                         <button
                             key={key}

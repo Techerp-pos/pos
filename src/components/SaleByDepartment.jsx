@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../config/firebase';
 import { collection, query, getDocs, where } from 'firebase/firestore';
 import {
-    Button, Select, MenuItem, FormControl, InputLabel, TextField, Grid, Table, TableHead, TableRow, TableCell, TableBody, Box, CircularProgress, Alert, Typography, Paper
+    Button, Select, MenuItem, FormControl, InputLabel, TextField, Grid, Table, TableHead, TableRow, TableCell, TableBody, Box, CircularProgress, Alert, Typography,
 } from '@mui/material';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -29,15 +29,13 @@ const SaleByDepartment = () => {
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [pdfUrl, setPdfUrl] = useState(''); // State to hold the generated PDF URL
 
     useEffect(() => {
         fetchShopName();
         fetchDepartments();
     }, []);
 
-
-
-    // Fetch shop name
     const fetchShopName = async () => {
         try {
             const q = query(collection(db, 'shops'), where('shopCode', '==', currentUser.shopCode));
@@ -55,7 +53,6 @@ const SaleByDepartment = () => {
         }
     };
 
-    // Fetch departments
     const fetchDepartments = async () => {
         try {
             const q = query(collection(db, 'departments'));
@@ -75,19 +72,18 @@ const SaleByDepartment = () => {
 
         setLoading(true);
         setError(null);
+
         try {
-            let q = query(
+            // Fetch all orders within the date range
+            const q = query(
                 collection(db, 'orders'),
                 where('timestamp', '>=', new Date(startDate)),
                 where('timestamp', '<=', new Date(endDate))
             );
 
-            if (selectedDepartment) {
-                q = query(q, where('department', '==', selectedDepartment));
-            }
-
             const snapshot = await getDocs(q);
 
+            // Map the orders
             const orders = snapshot.docs.map(doc => {
                 const orderData = doc.data();
                 const items = Array.isArray(orderData.items) ? orderData.items : [];
@@ -100,8 +96,21 @@ const SaleByDepartment = () => {
                 };
             });
 
-            const data = processReportDataByDepartment(orders);
+            // Filter items within each order based on the selected department
+            const filteredOrders = orders.map(order => ({
+                ...order,
+                items: order.items.filter(item =>
+                    !selectedDepartment || item.department === selectedDepartment
+                )
+            }))
+                // Remove orders that have no matching items
+                .filter(order => order.items.length > 0);
+
+            const data = processReportDataByDepartment(filteredOrders);
             setReportData(data);
+
+            // Generate and display the PDF
+            generatePdf(data);
         } catch (err) {
             console.error("Error fetching report data:", err);
             setError("Failed to generate report.");
@@ -109,6 +118,8 @@ const SaleByDepartment = () => {
             setLoading(false);
         }
     };
+
+
 
     const processReportDataByDepartment = (ordersWithDetails) => {
         const reportData = {};
@@ -139,35 +150,18 @@ const SaleByDepartment = () => {
         return Object.values(reportData);
     };
 
-    const exportToExcel = () => {
-        const worksheet = XLSX.utils.json_to_sheet(reportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales By Department');
-        XLSX.writeFile(workbook, 'SalesByDepartment.xlsx');
-    };
-
-    const exportToPdf = () => {
+    const generatePdf = (data) => {
         const doc = new jsPDF();
 
-        // Set font and styles for the header
-        doc.setFontSize(18); // Set font size
-        doc.setTextColor(40, 44, 99); // Set text color (RGB)
-        doc.setFont('helvetica', 'bold'); // Set font family and style
+        doc.setFontSize(18);
+        doc.text(shopName, 10, 10);
+        doc.text('SALE BY DEPARTMENT REPORT', 105, 10, { align: 'center' });
 
-        // Add shop name and title
-        // Add shop name on the left and report title on the right
-        doc.text(`${shopName}`, 10, 10); // Shop name on the left
-        doc.text('SALE BY DEPARTMENT REPORT', 200, 10, { align: 'right' }); // Report title on the right
+        doc.setFontSize(12);
+        doc.text(`Date Range: ${startDate} to ${endDate}`, 10, 20);
 
-        // Add date range with different style
-        doc.setFontSize(12); // Smaller font for the date range
-        doc.setFont('helvetica', 'normal'); // Regular style
-        doc.text(`From: ${startDate}`, 10, 20);
-        doc.text(`To: ${endDate}`, 140, 20);
-
-        // Table styles and content
         const tableColumn = ['Department', 'Total Quantity', 'Total Cost', 'Selling Price', 'Gross Profit'];
-        const tableRows = reportData.map((item) => [
+        const tableRows = data.map((item) => [
             item.department,
             item.totalQuantity,
             item.totalCost.toFixed(2),
@@ -178,20 +172,12 @@ const SaleByDepartment = () => {
         doc.autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 30, // Adjust to avoid overlapping the header text
-            headStyles: {
-                fillColor: [22, 160, 133], // Custom header background color
-                textColor: 255, // White text for the header
-                fontSize: 10,
-            },
-            bodyStyles: {
-                fontSize: 10,
-                cellPadding: 3,
-            },
+            startY: 30,
         });
 
-        // Save the PDF
-        doc.save('SalesByDepartment.pdf');
+        const pdfBlob = doc.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        setPdfUrl(url);
     };
 
     return (
@@ -205,8 +191,20 @@ const SaleByDepartment = () => {
                     <Typography variant="h6" align="center">Sales By Department Report</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <FormControl style={{ minWidth: 350 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 2,
+                            alignItems: 'center',
+                            justifyContent: 'space-evenly',
+                            backgroundColor: '#f9f9f9',
+                            padding: 3,
+                            borderRadius: 2,
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        }}
+                    >
+                        <FormControl sx={{ minWidth: 300 }}>
                             <InputLabel>Department</InputLabel>
                             <Select
                                 value={selectedDepartment}
@@ -227,7 +225,7 @@ const SaleByDepartment = () => {
                             InputLabelProps={{ shrink: true }}
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            style={{ minWidth: 200 }}
+                            sx={{ minWidth: 250 }}
                         />
 
                         <TextField
@@ -236,7 +234,7 @@ const SaleByDepartment = () => {
                             InputLabelProps={{ shrink: true }}
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            style={{ minWidth: 200 }}
+                            sx={{ minWidth: 250 }}
                         />
 
                         <Button
@@ -244,51 +242,31 @@ const SaleByDepartment = () => {
                             color="primary"
                             onClick={fetchReportData}
                             disabled={loading}
-                            style={{ minWidth: 200 }}
+                            sx={{
+                                minWidth: 200,
+                                padding: '12px 24px',
+                                fontWeight: 'bold',
+                                fontSize: '16px',
+                            }}
                         >
                             {loading ? <CircularProgress size={24} color="inherit" /> : 'Generate Report'}
                         </Button>
-                    </div>
+                    </Box>
                 </Grid>
 
-                {reportData.length > 0 && (
-                    <>
-                        <Grid item xs={12}>
-                            <div style={{ display: 'flex', gap: '20px' }}>
-                                <Button variant="contained" color="secondary" onClick={exportToPdf}>
-                                    Download PDF
-                                </Button>
-                                <Button variant="contained" color="success" onClick={exportToExcel}>
-                                    Download Excel
-                                </Button>
-                            </div>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Department</TableCell>
-                                        <TableCell>Total Quantity</TableCell>
-                                        <TableCell>Total Cost</TableCell>
-                                        <TableCell>Selling Price</TableCell>
-                                        <TableCell>Gross Profit</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {reportData.map((item, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{item.department}</TableCell>
-                                            <TableCell>{item.totalQuantity}</TableCell>
-                                            <TableCell>{item.totalCost.toFixed(2)}</TableCell>
-                                            <TableCell>{item.totalSellingPrice.toFixed(2)}</TableCell>
-                                            <TableCell>{item.grossProfit.toFixed(2)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Grid>
-                    </>
+                {pdfUrl && (
+                    <Grid item xs={12} style={{ marginTop: '20px' }}>
+                        <Typography variant="h6">Generated Report:</Typography>
+                        <div style={{ border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
+                            <embed
+                                src={pdfUrl}
+                                type="application/pdf"
+                                width="100%"
+                                height="600px"
+                                style={{ border: 'none' }}
+                            />
+                        </div>
+                    </Grid>
                 )}
             </Grid>
         </Box>

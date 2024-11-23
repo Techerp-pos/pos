@@ -771,13 +771,14 @@ function SalePOS() {
                     >
                         Payment
                     </button>
-                    <div className="display-container">
+                    <div className="display-container" >
                         <input
                             type="text"
                             className="keypad-display"
                             value={displayValue}
                             readOnly
                             placeholder="Enter or scan product code"
+                            style={{ width: '95%', padding: '10px' }}
                         />
                     </div>
                     <div className="keypad-sale">
@@ -832,96 +833,98 @@ function SalePOS() {
             )}
 
             {/* Customer Selection Modal using MUI */}
-            <Dialog open={isCustomerModalOpen} onClose={closeCustomerModal} fullWidth maxWidth="sm">
-                <DialogTitle>Customer Lookup</DialogTitle>
-                <DialogContent>
-                    {/* Autocomplete for customer lookup */}
-                    <Autocomplete
-                        options={customers}
-                        getOptionLabel={(customer) => customer.name}
-                        value={selectedCustomer}
-                        onChange={(event, newValue) => {
-                            setSelectedCustomer(newValue); // Set selected customer when selected from dropdown
-                        }}
-                        inputValue={searchTerm}
-                        onInputChange={(event, newInputValue) => {
-                            setSearchTerm(newInputValue); // Update the search term when typing
-                        }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Customer Lookup"
-                                variant="outlined"
-                                fullWidth
-                                margin="normal"
-                            />
-                        )}
-                    />
+            <Dialog open={isCustomerModalOpen} onClose={closeCustomerModal} fullWidth maxWidth="sm" >
+                <div style={{ margin: '20px' }}>
+                    <DialogTitle>Customer Lookup</DialogTitle>
+                    <DialogContent>
+                        {/* Autocomplete for customer lookup */}
+                        <Autocomplete
+                            options={customers}
+                            getOptionLabel={(customer) => customer.name}
+                            value={selectedCustomer}
+                            onChange={(event, newValue) => {
+                                setSelectedCustomer(newValue); // Set selected customer when selected from dropdown
+                            }}
+                            inputValue={searchTerm}
+                            onInputChange={(event, newInputValue) => {
+                                setSearchTerm(newInputValue); // Update the search term when typing
+                            }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Customer Lookup"
+                                    variant="outlined"
+                                    fullWidth
+                                    margin="normal"
+                                />
+                            )}
+                        />
 
-                    {/* Customer Information Fields */}
-                    <TextField
-                        label="Name"
-                        variant="outlined"
-                        fullWidth
-                        margin="normal"
-                        value={selectedCustomer?.name || ''}
-                        InputProps={{
-                            readOnly: true,
-                        }}
-                    />
-
-                    <TextField
-                        label="Contact"
-                        variant="outlined"
-                        fullWidth
-                        margin="normal"
-                        value={selectedCustomer?.mobile || ''}
-                        InputProps={{
-                            readOnly: true,
-                        }}
-                    />
-
-                    <TextField
-                        label="Customer Code"
-                        variant="outlined"
-                        fullWidth
-                        margin="normal"
-                        value={selectedCustomer?.id || ''}
-                        InputProps={{
-                            readOnly: true,
-                        }}
-                    />
-
-                    <Box display="flex" gap={2}>
+                        {/* Customer Information Fields */}
                         <TextField
-                            label="Due Amount"
+                            label="Name"
                             variant="outlined"
                             fullWidth
                             margin="normal"
-                            value={selectedCustomer?.dueAmount || ''}
+                            value={selectedCustomer?.name || ''}
                             InputProps={{
                                 readOnly: true,
                             }}
                         />
-                        <Button variant="contained" color="primary" style={{ marginTop: '16px', height: '56px' }}>
-                            Get Balance
-                        </Button>
-                    </Box>
 
-                    {/* <Button variant="contained" color="primary" fullWidth style={{ marginTop: '16px' }}>
+                        <TextField
+                            label="Contact"
+                            variant="outlined"
+                            fullWidth
+                            margin="normal"
+                            value={selectedCustomer?.mobile || ''}
+                            InputProps={{
+                                readOnly: true,
+                            }}
+                        />
+
+                        <TextField
+                            label="Customer Code"
+                            variant="outlined"
+                            fullWidth
+                            margin="normal"
+                            value={selectedCustomer?.id || ''}
+                            InputProps={{
+                                readOnly: true,
+                            }}
+                        />
+
+                        <Box display="flex" gap={2}>
+                            <TextField
+                                label="Due Amount"
+                                variant="outlined"
+                                fullWidth
+                                margin="normal"
+                                value={selectedCustomer?.dueAmount || ''}
+                                InputProps={{
+                                    readOnly: true,
+                                }}
+                            />
+                            <Button variant="contained" color="primary" style={{ marginTop: '16px', height: '56px' }}>
+                                Get Balance
+                            </Button>
+                        </Box>
+
+                        {/* <Button variant="contained" color="primary" fullWidth style={{ marginTop: '16px' }}>
                         View Report
                     </Button> */}
 
-                    {/* Action Buttons */}
-                    <Box display="flex" justifyContent="space-between" marginTop={2}>
-                        <Button variant="contained" color="primary" onClick={handleNewCustomer}>
-                            New
-                        </Button>
-                        <Button variant="contained" color="primary" onClick={handleSelectCustomer}>
-                            Select
-                        </Button>
-                    </Box>
-                </DialogContent>
+                        {/* Action Buttons */}
+                        <Box display="flex" justifyContent="space-between" marginTop={2}>
+                            <Button variant="contained" color="primary" onClick={handleNewCustomer}>
+                                New
+                            </Button>
+                            <Button variant="contained" color="primary" onClick={handleSelectCustomer}>
+                                Select
+                            </Button>
+                        </Box>
+                    </DialogContent>
+                </div>
             </Dialog>
 
         </div>

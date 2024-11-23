@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Tab, Tabs, Typography } from '@mui/material';
-import SalesReport from './SalesReport'; // Assuming these components are in separate files
+import { Box, Tab, Tabs } from '@mui/material';
+import SalesReport from './SalesReport';
 import SaleByDepartment from './SaleByDepartment';
 import SalesByInvoice from './SalesByInvoice';
 
@@ -26,19 +26,33 @@ const Reports = () => {
 
     return (
         <Box m={3}>
-            {/* <Typography variant="h4" align="center" gutterBottom>
-                Sales Reports
-            </Typography> */}
-
-            <Tabs value={activeTab} onChange={handleTabChange} centered>
-                <Tab label="Sales By Item" />
-                <Tab label="Sales By Department" />
-                <Tab label="Sales By Invoice" />
-            </Tabs>
-
-            <Box mt={3}>
-                {renderTabContent()}
+            {/* Centered Tabs with Gap */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 3, // Add gap between tabs
+                }}
+            >
+                <Tabs
+                    value={activeTab}
+                    onChange={handleTabChange}
+                    TabIndicatorProps={{
+                        style: { display: 'none' }, // Optional: Hide underline indicator
+                    }}
+                    sx={{
+                        '& .MuiTabs-flexContainer': {
+                            gap: 3, // Gap between tabs
+                        },
+                    }}
+                >
+                    <Tab label="Sales By Item" />
+                    <Tab label="Sales By Department" />
+                    <Tab label="Sales By Invoice" />
+                </Tabs>
             </Box>
+
+            <Box mt={3}>{renderTabContent()}</Box>
         </Box>
     );
 };

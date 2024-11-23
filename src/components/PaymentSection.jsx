@@ -89,6 +89,10 @@ function PaymentSection({ total, onClose, onPaymentComplete, shopDetails }) {
         }
     };
 
+    const isPaymentAllowed = () => {
+        return remainingAmount > 0 && change === 0;
+    };
+
 
     const handleRemovePayment = (index) => {
         const payment = paymentSummary[index];
@@ -102,129 +106,132 @@ function PaymentSection({ total, onClose, onPaymentComplete, shopDetails }) {
 
     return (
         <Dialog open={true} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle style={{ backgroundColor: '#2196f3', color: 'white' }}>Payment</DialogTitle>
-            <DialogContent>
-                <Grid container spacing={2}>
-                    {/* Payment Methods */}
-                    <Grid item xs={3}>
-                        {paymentMethods.map((method) => (
-                            <Button
-                                key={method}
-                                variant={selectedMethod === method ? 'contained' : 'outlined'}
-                                color={selectedMethod === method ? 'warning' : 'default'}
+            <div style={{ padding: '20px' }}>
+                <DialogTitle style={{ backgroundColor: '#2196f3', color: 'white' }}>Payment</DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={2}>
+                        {/* Payment Methods */}
+                        <Grid item xs={3}>
+                            {paymentMethods.map((method) => (
+                                <Button
+                                    key={method}
+                                    variant={selectedMethod === method ? 'contained' : 'outlined'}
+                                    color={selectedMethod === method ? 'warning' : 'default'}
+                                    fullWidth
+                                    onClick={() => handleMethodChange(method)}
+                                    style={{ marginBottom: '10px', fontSize: '16px', height: '60px' }}
+                                >
+                                    {method}
+                                </Button>
+                            ))}
+                        </Grid>
+
+                        {/* Amount and Balance Section */}
+                        <Grid item xs={5}>
+                            <Typography variant="h5" gutterBottom>
+                                Total: {parseFloat(total).toFixed(3)} OMR
+                            </Typography>
+
+                            {/* To Pay Section */}
+                            <Typography variant="h6" gutterBottom style={{ color: 'red' }}>
+                                To Pay: {remainingAmount.toFixed(3)} OMR
+                            </Typography>
+
+                            <TextField
+                                variant="outlined"
+                                label="Amount"
                                 fullWidth
-                                onClick={() => handleMethodChange(method)}
-                                style={{ marginBottom: '10px', fontSize: '16px', height: '60px' }}
-                            >
-                                {method}
-                            </Button>
-                        ))}
-                    </Grid>
+                                value={amount}
+                                InputProps={{ readOnly: true }}
+                                style={{ marginBottom: '10px' }}
+                            />
+                            <TextField
+                                variant="outlined"
+                                label={change > 0 ? "Change" : "Balance"} // Dynamically show Balance or Change
+                                fullWidth
+                                value={change > 0 ? change.toFixed(3) : remainingAmount.toFixed(3)}
+                                InputProps={{ readOnly: true }}
+                                style={{ marginBottom: '10px' }}
+                            />
+                        </Grid>
 
-                    {/* Amount and Balance Section */}
-                    <Grid item xs={5}>
-                        <Typography variant="h5" gutterBottom>
-                            Total: {parseFloat(total).toFixed(3)} OMR
-                        </Typography>
-
-                        {/* To Pay Section */}
-                        <Typography variant="h6" gutterBottom style={{ color: 'red' }}>
-                            To Pay: {remainingAmount.toFixed(3)} OMR
-                        </Typography>
-
-                        <TextField
-                            variant="outlined"
-                            label="Amount"
-                            fullWidth
-                            value={amount}
-                            InputProps={{ readOnly: true }}
-                            style={{ marginBottom: '10px' }}
-                        />
-                        <TextField
-                            variant="outlined"
-                            label={change > 0 ? "Change" : "Balance"} // Dynamically show Balance or Change
-                            fullWidth
-                            value={change > 0 ? change.toFixed(3) : remainingAmount.toFixed(3)}
-                            InputProps={{ readOnly: true }}
-                            style={{ marginBottom: '10px' }}
-                        />
-                    </Grid>
-
-                    {/* Keypad */}
-                    <Grid item xs={4}>
-                        <Grid container spacing={1}>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map((key) => (
-                                <Grid item xs={4} key={key}>
+                        {/* Keypad */}
+                        <Grid item xs={4}>
+                            <Grid container spacing={1}>
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'Enter'].map((key) => (
+                                    <Grid item xs={4} key={key}>
+                                        <Button
+                                            variant="contained"
+                                            fullWidth
+                                            onClick={() => handleKeypadClick(key)}
+                                            disabled={!isPaymentAllowed() && key !== 'Clear'} // Disable all except Clear
+                                            style={{ height: '60px', fontSize: '18px', backgroundColor: !isPaymentAllowed() ? '#ccc' : undefined }}
+                                        >
+                                            {key}
+                                        </Button>
+                                    </Grid>
+                                ))}
+                                <Grid item xs={12}>
                                     <Button
                                         variant="contained"
                                         fullWidth
-                                        onClick={() => handleKeypadClick(key)}
+                                        onClick={() => handleKeypadClick('Clear')}
+                                        color="error"
                                         style={{ height: '60px', fontSize: '18px' }}
                                     >
-                                        {key}
+                                        Clear
                                     </Button>
                                 </Grid>
-                            ))}
-                            <Grid item xs={12}>
-                                <Button
-                                    variant="contained"
-                                    fullWidth
-                                    onClick={() => handleKeypadClick('Clear')}
-                                    color="error"
-                                    style={{ height: '60px', fontSize: '18px' }}
-                                >
-                                    Clear
-                                </Button>
                             </Grid>
                         </Grid>
                     </Grid>
-                </Grid>
 
-                {/* Payment Summary Section */}
-                <Grid container spacing={2} style={{ marginTop: '20px' }}>
-                    <Grid item xs={12}>
-                        <Typography variant="h6" gutterBottom>
-                            Payment Summary:
-                        </Typography>
-                        <div style={{ backgroundColor: '#4a148c', padding: '10px', borderRadius: '5px' }}>
-                            {paymentSummary.map((payment, index) => (
-                                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <Typography variant="body1" style={{ color: 'white' }}>
-                                        {payment.method}: {payment.amount.toFixed(3)} OMR
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        size="small"
-                                        color="error"
-                                        onClick={() => handleRemovePayment(index)}
-                                    >
-                                        X
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+                    {/* Payment Summary Section */}
+                    <Grid container spacing={2} style={{ marginTop: '20px' }}>
+                        <Grid item xs={12}>
+                            <Typography variant="h6" gutterBottom>
+                                Payment Summary:
+                            </Typography>
+                            <div style={{ backgroundColor: '#4a148c', padding: '10px', borderRadius: '5px' }}>
+                                {paymentSummary.map((payment, index) => (
+                                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                        <Typography variant="body1" style={{ color: 'white' }}>
+                                            {payment.method}: {payment.amount.toFixed(3)} OMR
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleRemovePayment(index)}
+                                        >
+                                            X
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </Grid>
                     </Grid>
-                </Grid>
 
-            </DialogContent>
-            <DialogActions>
-                <Button
-                    onClick={handlePaymentCompletion}
-                    variant="contained"
-                    color="success"
-                    style={{ fontSize: '18px', marginRight: '10px' }}
-                >
-                    Save & Print
-                </Button>
-                <Button
-                    onClick={onClose}
-                    variant="outlined"
-                    color="secondary"
-                    style={{ fontSize: '18px' }}
-                >
-                    Cancel
-                </Button>
-            </DialogActions>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={handlePaymentCompletion}
+                        variant="contained"
+                        color="success"
+                        style={{ fontSize: '18px', marginRight: '10px' }}
+                    >
+                        Save & Print
+                    </Button>
+                    <Button
+                        onClick={onClose}
+                        variant="outlined"
+                        color="secondary"
+                        style={{ fontSize: '18px' }}
+                    >
+                        Cancel
+                    </Button>
+                </DialogActions>
+            </div>
         </Dialog>
     );
 }
